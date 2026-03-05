@@ -1,0 +1,138 @@
+/* src/index.css - Global NIB Bank Styles */
+
+/* ==================== NIB BANK COLOR SCHEME ==================== */
+:root {
+  /* Primary Colors - Based on NIB branding */
+  --nib-brown: #8B4513;
+  --nib-brown-dark: #654321;
+  --nib-brown-light: #A0522D;
+  --nib-gold: #FFD700;
+  --nib-gold-dark: #DAA520;
+  --nib-orange: #D2691E;
+  
+  /* Secondary Colors */
+  --nib-cream: #FFF8DC;
+  --nib-beige: #F5F5DC;
+  --nib-light-brown: #D2B48C;
+  
+  /* Status Colors */
+  --status-green: #28a745;
+  --status-amber: #ffc107;
+  --status-red: #dc3545;
+  --status-blue: #007bff;
+  
+  /* Neutral Colors */
+  --white: #ffffff;
+  --gray-100: #f8f9fa;
+  --gray-200: #e9ecef;
+  --gray-300: #dee2e6;
+  --gray-600: #6c757d;
+  --gray-800: #343a40;
+  --black: #000000;
+  
+  /* Shadows */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.15);
+  --shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.2);
+}
+
+/* ==================== GLOBAL RESET & BASE ==================== */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  margin: 0;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: var(--gray-100);
+  color: var(--gray-800);
+  line-height: 1.5;
+}
+
+#root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ==================== TYPOGRAPHY ==================== */
+h1, h2, h3, h4, h5, h6 {
+  color: var(--nib-brown);
+  font-weight: 600;
+  line-height: 1.3;
+  margin-bottom: 0.5em;
+}
+
+h1 { font-size: 2.5rem; }
+h2 { font-size: 1.8rem; }
+h3 { font-size: 1.4rem; }
+h4 { font-size: 1.2rem; }
+
+p {
+  margin-bottom: 1em;
+  color: var(--gray-600);
+}
+
+a {
+  color: var(--nib-brown);
+  text-decoration: none;
+  transition: color 0.3s ease;
+}
+
+a:hover {
+  color: var(--nib-brown-dark);
+}
+
+/* ==================== UTILITIES ==================== */
+.text-center { text-align: center; }
+.text-right { text-align: right; }
+.mb-0 { margin-bottom: 0; }
+.mb-1 { margin-bottom: 0.5rem; }
+.mb-2 { margin-bottom: 1rem; }
+.mb-3 { margin-bottom: 1.5rem; }
+.mt-1 { margin-top: 0.5rem; }
+.mt-2 { margin-top: 1rem; }
+.mt-3 { margin-top: 1.5rem; }
+
+/* ==================== ANIMATIONS ==================== */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.fade-in {
+  animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.spinner {
+  animation: spin 1s linear infinite;
+}
+
+/* ==================== RESPONSIVE ==================== */
+@media (max-width: 768px) {
+  h1 { font-size: 2rem; }
+  h2 { font-size: 1.5rem; }
+  h3 { font-size: 1.2rem; }
+}
+
+/* ==================== PRINT STYLES ==================== */
+@media print {
+  .navbar, .btn, .notification-dropdown {
+    display: none !important;
+  }
+  
+  body {
+    background: white;
+    color: black;
+  }
+}
