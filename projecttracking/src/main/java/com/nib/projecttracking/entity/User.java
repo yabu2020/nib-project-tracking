@@ -94,13 +94,12 @@ public class User {
         DIRECTOR,
         BUSINESS,
         QUALITY_ASSURANCE,
-        CORE_BANKING_MANAGER,
+        SECURITY,
         DIGITAL_BANKING_MANAGER,
         SENIOR_IT_OFFICER,
         JUNIOR_IT_OFFICER,
         IT_GRADUATE_TRAINEE,
         PROJECT_MANAGER,
-        DEVELOPER,
-        AUDITOR
+        DEVELOPER
     }
 }

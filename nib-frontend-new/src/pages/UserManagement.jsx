@@ -227,6 +227,7 @@ const UserManagement = () => {
       'DIRECTOR': '#001234',
       'BUSINESS': '#004567',
       'QUALITY_ASSURANCE': '#137654',
+      'SECURITY': '#667654',
       'DIGITAL_BANKING_MANAGER': '#0099ff',
       'PROJECT_MANAGER': '#6f42c1',
       'SENIOR_IT_OFFICER': '#28a745',
@@ -378,6 +379,7 @@ const UserManagement = () => {
                 <option value="DIRECTOR">Director</option>
                 <option value="BUSINESS">Business</option>
                 <option value="QUALITY_ASSURANCE">Quality Assurance</option>
+                <option value="SECURITY">Security</option>
                 <option value="DIGITAL_BANKING_MANAGER">Technical Digital Banking Manager</option>
                 <option value="PROJECT_MANAGER">Project Manager</option>
                 <option value="SENIOR_IT_OFFICER">Senior IT Officer</option>
@@ -650,6 +652,7 @@ const UserManagement = () => {
                 <option value="DIRECTOR">Director</option>
                 <option value="BUSINESS">Business</option>
                 <option value="QUALITY_ASSURANCE">Quality Assurance</option>
+                <option value="SECURITY">Security</option>
                   <option value="DIGITAL_BANKING_MANAGER">Technical Digital Banking Manager</option>
                   <option value="PROJECT_MANAGER">Project Manager</option>
                   <option value="SENIOR_IT_OFFICER">Senior IT Officer</option>
@@ -849,6 +852,7 @@ const UserManagement = () => {
                 <option value="DIRECTOR">Director</option>
                 <option value="BUSINESS">Business</option>
                 <option value="QUALITY_ASSURANCE">Quality Assurance</option>
+                <option value="SECURITY">Security</option>
                   <option value="DIGITAL_BANKING_MANAGER">Technical Digital Banking Manager</option>
                   <option value="PROJECT_MANAGER">Project Manager</option>
                   <option value="SENIOR_IT_OFFICER">Senior IT Officer</option>

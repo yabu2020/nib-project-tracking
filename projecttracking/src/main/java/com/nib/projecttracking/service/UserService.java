@@ -150,7 +150,7 @@ public class UserService {
                 User.Role.DIRECTOR,
                 User.Role.BUSINESS,
                 User.Role.QUALITY_ASSURANCE,
-                User.Role.CORE_BANKING_MANAGER,
+                User.Role.SECURITY,
                 User.Role.DIGITAL_BANKING_MANAGER,
                 User.Role.PROJECT_MANAGER
         );

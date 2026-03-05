@@ -288,7 +288,7 @@ const getRagColor = (status) => {
     return currentUser?.role === 'PROJECT_MANAGER';
   };
 const isQUALITY = () => {
-    return currentUser?.role === 'QUALITY_ASSURANCE';
+    return ['SECURITY', 'QUALITY_ASSURANCE'].includes(currentUser?.role);
   };
  
   const isBusiness = () => {
@@ -648,7 +648,7 @@ if (loading) {
               <tr>
                 <th>Project Name</th>
                 <th>Type</th>
-                <th>Status</th>
+                {/* <th>Status</th> */}
                 <th>RAG Status</th>
                  {canSeeCreatedBy() && <th>Created By</th>}
                 <th>Completion</th>
@@ -664,7 +664,7 @@ if (loading) {
                   <tr key={project.id}>
                     <td style={{ fontWeight: '600' }}>{project.projectName}</td>
                     <td><span className="badge badge-green">{project.projectType}</span></td>
-                    <td>{project.status}</td>
+                    {/* <td>{project.status}</td> */}
                     <td>
                       <span className="badge" style={{
                         backgroundColor: getRagColor(project.ragStatus),

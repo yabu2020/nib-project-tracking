@@ -128,7 +128,7 @@ public class ProjectService {
         currentUser.getRole() == User.Role.CEO ||
         currentUser.getRole() == User.Role.DEPUTY_CHIEF ||
         currentUser.getRole() == User.Role.DIRECTOR ||
-        currentUser.getRole() == User.Role.CORE_BANKING_MANAGER ||
+        currentUser.getRole() == User.Role.SECURITY ||
         currentUser.getRole() == User.Role.DIGITAL_BANKING_MANAGER
     );
         if (projectDetails.getProjectName() != null &&
