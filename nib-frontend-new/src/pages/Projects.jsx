@@ -14,7 +14,7 @@ const Projects = () => {
   const navigate = useNavigate();
   const [showModal, setShowModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-
+  
   const [selectedProject, setSelectedProject] = useState(null);
   const [showAttachments, setShowAttachments] = useState(false);
 
@@ -106,7 +106,19 @@ const getDaysRemaining = (endDate) => {
       setLoading(false);
     }
   };
-
+useEffect(() => {
+  const urlParams = new URLSearchParams(window.location.search);
+  const projectId = urlParams.get('projectId');
+  const openComments = urlParams.get('openComments');
+  
+  if (projectId && openComments === 'true') {
+    // Find and open the project's comments
+    const project = projects.find(p => p.id === parseInt(projectId));
+    if (project) {
+      handleViewProject(project);
+    }
+  }
+}, [projects]);
   const handleInputChange = (e) => {
     setFormData({
       ...formData,

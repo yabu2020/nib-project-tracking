@@ -17,7 +17,12 @@ const Dashboard = () => {
   const [newComment, setNewComment] = useState('');
   const [replyTo, setReplyTo] = useState(null);
   const [replyText, setReplyText] = useState('');
-
+  const [showChatModal, setShowChatModal] = useState(false);
+const [chatComments, setChatComments] = useState([]);
+const [chatLoading, setChatLoading] = useState(false);
+const [chatNewComment, setChatNewComment] = useState('');
+const [chatSelectedProject, setChatSelectedProject] = useState('');
+const [chatProjects, setChatProjects] = useState([]);
  useEffect(() => {
   console.log('=== DASHBOARD MOUNTED ===');
   console.log('Current user:', currentUser);
@@ -29,6 +34,18 @@ const Dashboard = () => {
     fetchRecentActivities();
   }
 }, []);
+
+// Auto-refresh comments when modal is open
+useEffect(() => {
+  let interval;
+  if (showChatModal) {
+    fetchAllComments(); // Initial fetch
+    interval = setInterval(fetchAllComments, 30000); // Refresh every 30 seconds
+  }
+  return () => {
+    if (interval) clearInterval(interval);
+  };
+}, [showChatModal]);
 const fetchDashboardStats = async () => {
   try {
     console.log('📊 Fetching dashboard stats...');
@@ -419,8 +436,173 @@ const closeCommentsModal = () => {
   setNewComment('');
   setReplyTo(null);
   setReplyText('');
+};// Add this after your useState declarations
+const filteredComments = chatSelectedProject
+  ? chatComments.filter(comment => {
+      // ✅ Convert both to strings for reliable comparison
+      const commentProjectId = String(comment.projectId);
+      const selectedId = String(chatSelectedProject);
+      const match = commentProjectId === selectedId;
+      
+      // Debug log (remove in production)
+      console.log(`🔍 Filter: comment.projectId=${commentProjectId}, selected=${selectedId}, match=${match}`);
+      
+      return match;
+    })
+  : chatComments;
+// Fetch all comments from all projects with proper reply handling
+const fetchAllComments = async () => {
+  try {
+    setChatLoading(true);
+    console.log('🔄 Fetching all comments for chat...');
+    
+    // Step 1: Fetch projects
+    const projectsRes = await api.get('/api/projects', {
+      params: { userId: currentUser?.id, userRole: currentUser?.role }
+    });
+    
+    const projectsData = projectsRes.data || [];
+    console.log('📁 Projects loaded:', projectsData.length);
+    setChatProjects(projectsData);
+    
+    // Step 2: Fetch ALL comments from ALL projects
+    const allCommentsPromises = projectsData.map(project =>
+      api.get(`/api/projects/${project.id}/comments`)
+        .then(res => ({
+          projectId: project.id,
+          projectName: project.projectName,
+          comments: res.data || []
+        }))
+        .catch(err => {
+          console.error(`Error fetching comments for project ${project.id}:`, err);
+          return { projectId: project.id, projectName: project.projectName, comments: [] };
+        })
+    );
+    
+    const allCommentsResults = await Promise.all(allCommentsPromises);
+    
+    // Step 3: Separate root comments and replies
+    const rootCommentsMap = new Map();
+    const allReplies = [];
+    
+    allCommentsResults.forEach(result => {
+      result.comments.forEach(comment => {
+        // 🔍 DEBUG: Log comment structure to identify parent field
+        console.log('🔍 Comment structure:', {
+          id: comment.id,
+          text: comment.commentText?.substring(0, 30),
+          parentCommentId: comment.parentCommentId,
+          parent_comment_id: comment.parent_comment_id,
+          parentId: comment.parentId,
+          replyTo: comment.replyTo,
+          parentComment: comment.parentComment
+        });
+        
+        // ✅ Check for multiple possible field names for parent reference
+        const parentRef = 
+          comment.parentCommentId ?? 
+          comment.parent_comment_id ?? 
+          comment.parentId ?? 
+          comment.replyTo ??
+          comment.parentComment?.id ??
+          null;
+        
+        const isReply = parentRef != null;
+        
+        if (isReply) {
+          // This is a reply - store it separately
+          allReplies.push({
+            ...comment,
+            projectName: result.projectName,
+            projectId: result.projectId,
+            parentCommentId: parentRef
+          });
+          console.log(`📝 Found reply: ID=${comment.id}, parent=${parentRef}`);
+        } else {
+          // This is a root comment
+          rootCommentsMap.set(comment.id, {
+            ...comment,
+            projectName: result.projectName,
+            projectId: result.projectId,
+            replies: []
+          });
+          console.log(`📝 Found root comment: ID=${comment.id}`);
+        }
+      });
+    });
+    
+    // Step 4: Attach replies to their parent comments
+    allReplies.forEach(reply => {
+      const parentComment = rootCommentsMap.get(reply.parentCommentId);
+      if (parentComment) {
+        if (!parentComment.replies) {
+          parentComment.replies = [];
+        }
+        parentComment.replies.push(reply);
+        console.log(`🔗 Attached reply ${reply.id} to parent ${reply.parentCommentId}`);
+      } else {
+        console.warn(`⚠️ Reply ${reply.id} has unknown parent ${reply.parentCommentId}`);
+      }
+    });
+    
+    // Step 5: Convert map to array and sort by newest first
+    const allRootComments = Array.from(rootCommentsMap.values());
+    allRootComments.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    
+    // Debug summary
+    console.log('✅ Total root comments:', allRootComments.length);
+    console.log('✅ Total replies:', allReplies.length);
+    console.log('✅ Comments with replies:', allRootComments.filter(c => c.replies && c.replies.length > 0).length);
+    
+    // Log first few comments for debugging
+    allRootComments.slice(0, 3).forEach(c => {
+      console.log(`📋 Comment ${c.id}: "${c.commentText?.substring(0, 50)}...", replies: ${c.replies?.length || 0}`);
+    });
+    
+    setChatComments(allRootComments);
+    setChatLoading(false);
+  } catch (error) {
+    console.error('❌ Error fetching chat comments:', error);
+    setChatLoading(false);
+  }
 };
 
+// Send comment from chat modal
+const handleChatSendComment = async () => {
+  if (!chatNewComment.trim() || !chatSelectedProject) return;
+  
+  try {
+    await api.post(`/api/projects/${chatSelectedProject}/comments`, null, {
+      params: {
+        userId: currentUser.id,
+        commentText: chatNewComment,
+        parentCommentId: null
+      }
+    });
+    
+    setChatNewComment('');
+    fetchAllComments(); // Refresh comments
+    
+    // Show success feedback
+    alert('Comment posted successfully!');
+  } catch (error) {
+    console.error('❌ Error sending chat comment:', error);
+    alert('Failed to send comment');
+  }
+};
+
+// Format time ago
+const chatTimeAgo = (dateString) => {
+  if (!dateString) return '';
+  const date = new Date(dateString);
+  const now = new Date();
+  const seconds = Math.floor((now - date) / 1000);
+  
+  if (seconds < 60) return 'Just now';
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
+  return date.toLocaleDateString();
+};
 if (loading) {
   return (
     <div className="loading">
@@ -945,6 +1127,312 @@ if (loading) {
           </div>
         )}
       </div>
+      {/* Floating Chat Button */}
+<button
+  onClick={() => {
+    setShowChatModal(true);
+    fetchAllComments();
+  }}
+  style={{
+    position: 'fixed',
+    bottom: '30px',
+    right: '30px',
+    width: '60px',
+    height: '60px',
+    backgroundColor: '#8B4513',
+    color: 'white',
+    border: 'none',
+    borderRadius: '50%',
+    boxShadow: '0 4px 12px rgba(139, 69, 19, 0.4)',
+    cursor: 'pointer',
+    fontSize: '28px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1000,
+    transition: 'all 0.3s ease',
+    animation: 'pulse 2s infinite'
+  }}
+  onMouseEnter={(e) => {
+    e.target.style.transform = 'scale(1.1)';
+    e.target.style.boxShadow = '0 6px 16px rgba(139, 69, 19, 0.5)';
+  }}
+  onMouseLeave={(e) => {
+    e.target.style.transform = 'scale(1)';
+    e.target.style.boxShadow = '0 4px 12px rgba(139, 69, 19, 0.4)';
+  }}
+  title="Project Comments Chat"
+>
+  💬
+</button>{/* Chat Modal with Backdrop */}
+{showChatModal && (
+  <>
+    {/* Backdrop - Click to close */}
+    <div
+      onClick={() => setShowChatModal(false)}
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        zIndex: 1000
+      }}
+    />
+    
+    {/* Modal Content */}
+    <div
+      style={{
+        position: 'fixed',
+        bottom: '100px',
+        right: '30px',
+        width: '450px',
+        maxWidth: '90vw',
+        maxHeight: '650px',
+        backgroundColor: 'white',
+        borderRadius: '12px',
+        boxShadow: '0 8px 24px rgba(0,0,0,0.15)',
+        zIndex: 1001,
+        display: 'flex',
+        flexDirection: 'column'
+      }}
+    >
+      {/* Modal Header */}
+      <div style={{
+        backgroundColor: '#8B4513',
+        color: 'white',
+        padding: '15px 20px',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center'
+      }}>
+        <h3 style={{ margin: 0, fontSize: '18px' }}>💬 Project Comments</h3>
+        <button
+          onClick={() => setShowChatModal(false)}
+          style={{
+            background: 'rgba(255,255,255,0.2)',
+            border: 'none',
+            color: 'white',
+            fontSize: '20px',
+            width: '32px',
+            height: '32px',
+            borderRadius: '50%',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}
+        >
+          ✕
+        </button>
+      </div>
+
+      {/* Project Selector */}
+      <div style={{ 
+        padding: '15px', 
+        borderBottom: '1px solid #e0e0e0',
+        backgroundColor: 'white'
+      }}>
+        <label style={{
+          display: 'block',
+          fontSize: '12px',
+          color: '#666',
+          marginBottom: '5px',
+          fontWeight: '600'
+        }}>
+          Select Project:
+        </label>
+        <select
+          value={chatSelectedProject}
+          onChange={(e) => {
+            console.log('📁 Project selected:', e.target.value);
+            setChatSelectedProject(e.target.value);
+          }}
+          style={{
+            width: '100%',
+            padding: '10px',
+            border: '2px solid #D2691E',
+            borderRadius: '6px',
+            fontSize: '14px',
+            backgroundColor: 'white',
+            cursor: 'pointer'
+          }}
+        >
+          <option value="">All Projects</option>
+          {chatProjects.map(project => (
+            <option key={project.id} value={project.id}>
+              {project.projectName}
+            </option>
+          ))}
+        </select>
+      </div>
+{/* Comments List - Scrollable */}
+<div style={{
+  flex: 1,
+  overflowY: 'auto',
+  padding: '15px',
+  backgroundColor: '#f9f9f9'
+}}>
+  {chatLoading ? (
+    <div style={{ textAlign: 'center', padding: '40px', color: '#666' }}>
+      <p>Loading comments...</p>
+    </div>
+  ) : filteredComments.length === 0 ? (
+    <div style={{ textAlign: 'center', padding: '40px', color: '#999' }}>
+      <p>No comments yet</p>
+      <p style={{ fontSize: '13px' }}>Be the first to comment!</p>
+    </div>
+  ) : (
+    filteredComments.map((comment, index) => (
+      <div key={comment.id || index}>
+        {/* Root Comment */}
+        <div
+          style={{
+            marginBottom: '12px',
+            padding: '12px',
+            backgroundColor: 'white',
+            borderRadius: '8px',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+          }}
+        >
+          {/* Project Name */}
+          <div style={{
+            fontSize: '11px',
+            color: '#8B4513',
+            fontWeight: '600',
+            marginBottom: '5px'
+          }}>
+            📁 {comment.projectName || 'Unknown Project'}
+          </div>
+
+          {/* Comment Text */}
+          <div style={{
+            fontSize: '13px',
+            color: '#333',
+            marginBottom: '8px',
+            lineHeight: '1.4'
+          }}>
+            {comment.commentText}
+          </div>
+
+          {/* Author & Time */}
+          <div style={{
+            fontSize: '11px',
+            color: '#999',
+            display: 'flex',
+            justifyContent: 'space-between'
+          }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+              👤 {comment.user?.fullName || comment.user?.username || comment.userName || 'Unknown User'}
+            </span>
+            <span>{chatTimeAgo(comment.createdAt)}</span>
+          </div>
+        </div>
+
+        {/* Replies Section - Only show if there are replies */}
+        {comment.replies && comment.replies.length > 0 && (
+          <div style={{
+            marginBottom: '12px',
+            paddingLeft: '25px',
+            borderLeft: '3px solid #D2691E'
+          }}>
+            {comment.replies.map((reply, replyIndex) => (
+              <div
+                key={reply.id || replyIndex}
+                style={{
+                  marginBottom: '8px',
+                  padding: '10px',
+                  backgroundColor: '#fff9f0',
+                  borderRadius: '6px'
+                }}
+              >
+                {/* Reply Text */}
+                <div style={{
+                  fontSize: '12px',
+                  color: '#333',
+                  marginBottom: '6px',
+                  lineHeight: '1.4'
+                }}>
+                  {reply.commentText}
+                </div>
+
+                {/* Reply Author & Time */}
+                <div style={{
+                  fontSize: '10px',
+                  color: '#999',
+                  display: 'flex',
+                  justifyContent: 'space-between'
+                }}>
+                  <span>👤 {reply.user?.fullName || reply.user?.username || reply.userName || 'Unknown'}</span>
+                  <span>{chatTimeAgo(reply.createdAt)}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    ))
+  )}
+</div>
+
+      {/* Comment Input */}
+      <div style={{
+        padding: '15px',
+        borderTop: '1px solid #e0e0e0',
+        backgroundColor: 'white'
+      }}>
+        <textarea
+          value={chatNewComment}
+          onChange={(e) => setChatNewComment(e.target.value)}
+          placeholder="Type your comment..."
+          rows="3"
+          style={{
+            width: '100%',
+            padding: '10px',
+            border: '2px solid #D2691E',
+            borderRadius: '6px',
+            fontSize: '14px',
+            resize: 'none',
+            marginBottom: '10px',
+            fontFamily: 'inherit'
+          }}
+        />
+        <button
+          onClick={handleChatSendComment}
+          disabled={!chatNewComment.trim()}
+          style={{
+            width: '100%',
+            padding: '12px',
+            backgroundColor: (!chatNewComment.trim()) ? '#ccc' : '#8B4513',
+            color: 'white',
+            border: 'none',
+            borderRadius: '6px',
+            cursor: (!chatNewComment.trim()) ? 'not-allowed' : 'pointer',
+            fontSize: '14px',
+            fontWeight: '600'
+          }}
+        >
+          💬 Send Comment
+        </button>
+      </div>
+    </div>
+  </>
+)}
+
+{/* Pulse Animation */}
+<style>{`
+  @keyframes pulse {
+    0%, 100% {
+      transform: scale(1);
+      box-shadow: 0 4px 12px rgba(139, 69, 19, 0.4);
+    }
+    50% {
+      transform: scale(1.05);
+      box-shadow: 0 6px 16px rgba(139, 69, 19, 0.5);
+    }
+  }
+`}</style>
     </div>
   );
 };

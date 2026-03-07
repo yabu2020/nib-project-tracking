@@ -33,4 +33,16 @@ public interface UserRepository extends JpaRepository<User, Long> {
     
     @Query("SELECT u FROM User u WHERE u.role IN :roles")
     List<User> findTechnicalStaff(@Param("roles") List<User.Role> roles);
+   
+
+@Query("SELECT DISTINCT u FROM User u " +
+       "WHERE u.id IN (" +
+       "  SELECT p.manager.id FROM Project p WHERE p.id = :projectId " +
+       "  UNION " +
+       "  SELECT p.initiatedBy.id FROM Project p WHERE p.id = :projectId " +
+       "  UNION " +
+       "  SELECT t.assignedTo.id FROM Task t WHERE t.project.id = :projectId " +
+       ") " +
+       "AND u.id != :excludeUserId")
+List<User> findUsersByProjectId(@Param("projectId") Long projectId, @Param("excludeUserId") Long excludeUserId);
 }

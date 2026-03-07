@@ -30,9 +30,6 @@ const Notifications = () => {
     
     let data = response.data;
     
-    // ... your existing parsing logic ...
-    
-    // ✅ ADD THIS DEBUG LOGGING
     console.log('🔍 Notification details:');
     if (Array.isArray(data)) {
       data.forEach((n, i) => {
@@ -138,8 +135,39 @@ const Notifications = () => {
   const getReadCount = () => {
     if (!Array.isArray(notifications)) return 0;
     return notifications.filter(n => n.read).length;
-  };
-
+  };const handleNotificationClick = (notification) => {
+  
+  if (notification.type === 'COMMENT' && notification.relatedEntityId) {
+    
+    navigate(`/projects?projectId=${notification.relatedEntityId}&openComments=true`, { 
+      replace: true 
+    });
+    
+    setTimeout(() => {
+      
+      navigate(`/projects?projectId=${notification.relatedEntityId}`, { 
+        replace: true 
+      });
+    }, 1000); 
+    
+    if (!notification.read && notification.id) {
+      setTimeout(() => {
+        markAsRead(notification.id).catch(console.error);
+      }, 300);
+    }
+    
+  } else if (notification.type === 'TASK_OVERDUE' && notification.relatedEntityId) {
+    navigate(`/tasks?taskId=${notification.relatedEntityId}`, { replace: true });
+    if (!notification.read && notification.id) {
+      setTimeout(() => markAsRead(notification.id).catch(console.error), 300);
+    }
+  } else if (notification.type === 'MILESTONE_OVERDUE' && notification.relatedEntityId) {
+    navigate(`/projects?projectId=${notification.relatedEntityId}`, { replace: true });
+    if (!notification.read && notification.id) {
+      setTimeout(() => markAsRead(notification.id).catch(console.error), 300);
+    }
+  }
+};
   return (
     <div className="dashboard-container" style={{ minHeight: '100vh', backgroundColor: '#f3f4f6' }}>
       {/* Navigation Bar */}
@@ -358,22 +386,49 @@ const Notifications = () => {
           ) : (
             <div>
               {notifications.map(notification => (
-                <div
-                  key={notification?.id || Math.random()}
-                  className={`notification-item ${!notification?.read ? 'unread' : ''}`}
-                  style={{
-                    padding: '20px',
-                    borderBottom: '1px solid #e5e7eb',
-                    backgroundColor: !notification?.read ? 'rgba(239, 246, 255, 0.5)' : 'white',
-                    display: 'flex',
-                    gap: '15px',
-                    transition: 'background-color 0.2s'
-                  }}
-                >
+               <div
+ 
+  key={notification?.id || `${notification?.type}-${notification?.createdAt}`}
+  className={`notification-item ${!notification?.read ? 'unread' : ''} ${notification?.type === 'COMMENT' ? 'comment-notification' : ''}`}
+  
+  onClick={() => handleNotificationClick(notification)}
+  style={{
+    padding: '20px',
+    borderBottom: '1px solid #e5e7eb',
+    
+    backgroundColor: !notification?.read 
+      ? (notification?.type === 'COMMENT' ? 'rgba(236, 246, 255, 0.8)' : 'rgba(239, 246, 255, 0.5)')
+      : 'white',
+   
+    borderLeft: notification?.type === 'COMMENT' ? '4px solid #3B82F6' : 'none',
+    display: 'flex',
+    gap: '15px',
+    transition: 'background-color 0.2s',
+   
+    cursor: 'pointer'
+  }}
+  onMouseEnter={(e) => {
+    e.currentTarget.style.backgroundColor = !notification?.read 
+      ? (notification?.type === 'COMMENT' ? 'rgba(236, 246, 255, 1)' : 'rgba(239, 246, 255, 0.8)')
+      : '#f9fafb';
+  }}
+  onMouseLeave={(e) => {
+    e.currentTarget.style.backgroundColor = !notification?.read 
+      ? (notification?.type === 'COMMENT' ? 'rgba(236, 246, 255, 0.8)' : 'rgba(239, 246, 255, 0.5)')
+      : 'white';
+  }}
+>
                   {/* Icon */}
-                  <div style={{ fontSize: '24px', flexShrink: '0' }}>
-                    {notification?.icon || '🔔'}
-                  </div>
+                 {/* Icon - Show specific icon based on notification type */}
+<div style={{ fontSize: '24px', flexShrink: '0' }}>
+  {notification?.type === 'COMMENT' ? '💬' : 
+  notification?.type === 'COMMENT_REPLY' ? '💭' :
+   notification?.type === 'TASK_OVERDUE' ? '⚠️' :
+   notification?.type === 'MILESTONE_OVERDUE' ? '🎯' :
+   notification?.type === 'PROJECT_UPDATE' ? '📁' :
+   notification?.type === 'ASSIGNED' ? '👤' :
+   notification?.type === 'COMPLETED' ? '✅' : '🔔'}
+</div>
                   
                   {/* Content */}
                   <div style={{ flex: '1', minWidth: '0' }}>
@@ -410,36 +465,45 @@ const Notifications = () => {
                         <span style={{ fontSize: '12px', color: '#9ca3af' }}>
                           {timeAgo(notification?.createdAt)}
                         </span>
-                        {!notification?.read && (
-                          <button
-                            onClick={() => markAsRead(notification.id)}
-                            style={{
-                              padding: '4px 8px',
-                              borderRadius: '4px',
-                              border: '1px solid #8B4513',
-                              backgroundColor: 'white',
-                              color: '#8B4513',
-                              cursor: 'pointer',
-                              fontSize: '12px'
-                            }}
-                          >
-                            Mark as read
-                          </button>
-                        )}
-                        <button
-                          onClick={() => deleteNotification(notification.id)}
-                          style={{
-                            padding: '4px 8px',
-                            borderRadius: '4px',
-                            border: 'none',
-                            backgroundColor: '#fee2e2',
-                            color: '#dc3545',
-                            cursor: 'pointer',
-                            fontSize: '12px'
-                          }}
-                        >
-                          🗑️
-                        </button>
+                       {/* Mark as read button */}
+{!notification?.read && (
+  <button
+    onClick={(e) => {
+      e.stopPropagation(); 
+      markAsRead(notification.id);
+    }}
+    style={{
+      padding: '4px 8px',
+      borderRadius: '4px',
+      border: '1px solid #8B4513',
+      backgroundColor: 'white',
+      color: '#8B4513',
+      cursor: 'pointer',
+      fontSize: '12px'
+    }}
+  >
+    Mark as read
+  </button>
+)}
+
+{/* Delete button */}
+<button
+  onClick={(e) => {
+    e.stopPropagation(); 
+    deleteNotification(notification.id);
+  }}
+  style={{
+    padding: '4px 8px',
+    borderRadius: '4px',
+    border: 'none',
+    backgroundColor: '#fee2e2',
+    color: '#dc3545',
+    cursor: 'pointer',
+    fontSize: '12px'
+  }}
+>
+  🗑️
+</button>
                       </div>
                     </div>
                     <p style={{ margin: '0', fontSize: '14px', color: '#4b5563', lineHeight: '1.5' }}>
