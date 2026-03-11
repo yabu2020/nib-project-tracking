@@ -112,7 +112,7 @@ useEffect(() => {
   const openComments = urlParams.get('openComments');
   
   if (projectId && openComments === 'true') {
-    // Find and open the project's comments
+   
     const project = projects.find(p => p.id === parseInt(projectId));
     if (project) {
       handleViewProject(project);

@@ -47,4 +47,5 @@ public ResponseEntity<?> testTrigger() {
     return ResponseEntity.ok(Map.of("message", "Check backend console for results"));
 }
 
+
 }
