@@ -39,7 +39,7 @@ public class NotificationController {
             return ResponseEntity.badRequest().body(Map.of("error", "Failed: " + e.getMessage()));
         }
     }
-    // In NotificationController.java
+    
 @PostMapping("/test-trigger")
 public ResponseEntity<?> testTrigger() {
     System.out.println("🔧 Test trigger called");

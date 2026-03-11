@@ -23,11 +23,9 @@ public class ProjectCommentController {
 public ResponseEntity<List<Map<String, Object>>> getComments(@PathVariable Long projectId) {
     System.out.println("📝 Fetching comments for project: " + projectId);
     
-    // Get ALL comments (root + replies)
     List<ProjectComment> allComments = commentService.getAllCommentsForProject(projectId);
     System.out.println("📊 Found " + allComments.size() + " total comments");
     
-    // Build response with explicit parentCommentId
     List<Map<String, Object>> response = allComments.stream().map(comment -> {
         Map<String, Object> map = new HashMap<>();
         map.put("id", comment.getId());

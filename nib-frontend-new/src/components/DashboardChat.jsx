@@ -12,36 +12,33 @@ const DashboardChat = () => {
   const [showAll, setShowAll] = useState(false);
   const chatEndRef = useRef(null);
 
-  // Fetch projects and comments
   useEffect(() => {
     fetchProjectsAndComments();
-    
-    // Auto-refresh every 30 seconds
+  
     const interval = setInterval(fetchProjectsAndComments, 30000);
     return () => clearInterval(interval);
   }, []);
 
-  // Auto-scroll to bottom when new comments arrive
+ 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [comments]);
 
   const fetchProjectsAndComments = async () => {
     try {
-      // Fetch projects
+      
       const projectsRes = await api.get('/api/projects', {
         params: { userId: currentUser?.id, userRole: currentUser?.role }
       });
       setProjects(projectsRes.data || []);
 
-      // Fetch comments for all projects
+
       const commentsPromises = (projectsRes.data || []).map(project =>
         api.get(`/api/projects/${project.id}/comments`)
       );
       
       const commentsResponses = await Promise.all(commentsPromises);
       
-      // Combine all comments with project info
       const allComments = [];
       commentsResponses.forEach((response, index) => {
         const project = projectsRes.data[index];
@@ -56,7 +53,7 @@ const DashboardChat = () => {
         });
       });
 
-      // Sort by created date (newest first)
+     
       allComments.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
       
       setComments(allComments);
@@ -80,7 +77,7 @@ const DashboardChat = () => {
       });
 
       setNewComment('');
-      fetchProjectsAndComments(); // Refresh comments
+      fetchProjectsAndComments(); 
     } catch (error) {
       console.error('❌ Error sending comment:', error);
       alert('Failed to send comment');
@@ -99,7 +96,7 @@ const DashboardChat = () => {
     return date.toLocaleDateString();
   };
 
-  // Filter comments - show all or just recent ones
+  
   const displayedComments = showAll ? comments : comments.slice(0, 10);
 
   return (

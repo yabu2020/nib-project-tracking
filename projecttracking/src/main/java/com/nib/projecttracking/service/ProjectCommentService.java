@@ -41,15 +41,15 @@ public class ProjectCommentService {
 public List<ProjectComment> getAllCommentsForProject(Long projectId) {
     System.out.println("📂 Fetching ALL comments for project: " + projectId);
     
-    // Fetch all comments from database
+    
     List<ProjectComment> allComments = commentRepository.findByProjectId(projectId);
     
     System.out.println("📊 Found " + allComments.size() + " total comments");
     
-    // Force load parent comments for replies
+  
     for (ProjectComment comment : allComments) {
         if (comment.getParentComment() != null) {
-            // Trigger lazy loading of parent
+            
             Long parentId = comment.getParentComment().getId();
             System.out.println("💬 Comment " + comment.getId() + " is a reply to parent " + parentId);
         } else {
@@ -75,14 +75,13 @@ public List<ProjectComment> getAllCommentsForProject(Long projectId) {
         System.out.println("Comment text: " + commentText);
         System.out.println("Parent comment ID: " + parentCommentId);
         
-        // Load project
         Project project = projectRepository.findById(projectId)
             .orElseThrow(() -> {
                 System.err.println("❌ Project not found: " + projectId);
                 return new RuntimeException("Project not found: " + projectId);
             });
         
-        // Load user
+        
         User user = userRepository.findById(userId)
             .orElseThrow(() -> {
                 System.err.println("❌ User not found: " + userId);
@@ -94,13 +93,12 @@ public List<ProjectComment> getAllCommentsForProject(Long projectId) {
         System.out.println("Project Initiator: " + (project.getInitiatedBy() != null ? project.getInitiatedBy().getUsername() : "NULL"));
         System.out.println("Commenter: " + user.getUsername());
         
-        // Create new comment
+        
         ProjectComment comment = new ProjectComment();
         comment.setProject(project);
         comment.setUser(user);
         comment.setCommentText(commentText);
-        
-        // If this is a reply, set the parent comment
+      
         if (parentCommentId != null) {
             System.out.println("📎 This is a REPLY to comment: " + parentCommentId);
             ProjectComment parentComment = commentRepository.findById(parentCommentId)
@@ -113,11 +111,10 @@ public List<ProjectComment> getAllCommentsForProject(Long projectId) {
             System.out.println("📝 This is a ROOT comment (no parent)");
         }
         
-        // Save the comment
+      
         ProjectComment savedComment = commentRepository.save(comment);
         System.out.println("✅ Comment saved with ID: " + savedComment.getId());
         
-        // Send notifications for ALL comments (root AND replies)
         System.out.println("🔔 Sending notifications for comment...");
         sendCommentNotifications(project, user, userId, commentText, savedComment.getId(), parentCommentId);
         
@@ -132,17 +129,14 @@ public List<ProjectComment> getAllCommentsForProject(Long projectId) {
                                          String commentText, Long commentId, Long parentCommentId) {
         System.out.println("\n📤=== SENDING COMMENT NOTIFICATIONS ===");
         
-        // Track who we've already notified for COMMENT type (to avoid duplicates)
-        Set<Long> notifiedForComment = new HashSet<>();
-        notifiedForComment.add(commenterId); // Don't notify the commenter themselves
         
-        // Create comment preview (first 100 chars)
+        Set<Long> notifiedForComment = new HashSet<>();
+        notifiedForComment.add(commenterId); 
+
         String preview = commentText != null && commentText.length() > 100 
             ? commentText.substring(0, 100) + "..." 
             : commentText;
         
-        // ✅ 1. FIRST: Notify parent comment author with REPLY notification (for replies)
-        // This ensures parent author gets REPLY notification BEFORE being considered for COMMENT notification
         if (parentCommentId != null) {
             try {
                 ProjectComment parentComment = commentRepository.findById(parentCommentId)
@@ -163,7 +157,6 @@ public List<ProjectComment> getAllCommentsForProject(Long projectId) {
                         commentId
                     );
                     
-                    // Add parent author to notifiedForComment set to prevent duplicate COMMENT notification
                     notifiedForComment.add(parentAuthor.getId());
                     
                     System.out.println("✅✓✓ Notified parent comment author with REPLY");
@@ -179,7 +172,6 @@ public List<ProjectComment> getAllCommentsForProject(Long projectId) {
             System.out.println("ℹ️ This is a root comment - no parent author to notify");
         }
         
-        // ✅ 2. SECOND: Notify project manager with COMMENT notification (if exists AND not already notified)
         if (project.getManager() != null && !notifiedForComment.contains(project.getManager().getId())) {
             try {
                 System.out.println("✅ Creating COMMENT notification for manager: " + project.getManager().getUsername());
@@ -207,7 +199,6 @@ public List<ProjectComment> getAllCommentsForProject(Long projectId) {
             }
         }
         
-        // ✅ 3. THIRD: Notify project initiator with COMMENT notification (if different and not already notified)
         if (project.getInitiatedBy() != null 
             && !notifiedForComment.contains(project.getInitiatedBy().getId())) {
             try {
@@ -230,7 +221,6 @@ public List<ProjectComment> getAllCommentsForProject(Long projectId) {
             System.out.println("⚠️ Skipping initiator notification: already notified or is commenter");
         }
         
-        // ✅ 4. FOURTH: Notify ALL project team members with COMMENT notification (if not already notified)
         try {
             System.out.println("🔍 Finding project team members for project: " + project.getId());
             List<User> projectTeam = userRepository.findUsersByProjectId(project.getId(), commenterId);

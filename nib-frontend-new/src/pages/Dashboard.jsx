@@ -7,14 +7,13 @@ import NotificationBell from '../components/NotificationBell';
 const Dashboard = () => {
   const { currentUser, logout } = useAuth();
   
-  // Dashboard States
   const [stats, setStats] = useState(null);
   const [recentProjects, setRecentProjects] = useState([]);
   const [recentActivities, setRecentActivities] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activitiesLoading, setActivitiesLoading] = useState(true);
   
-  // Inline Comments States
+  
   const [showComments, setShowComments] = useState(false);
   const [selectedProject, setSelectedProject] = useState(null);
   const [comments, setComments] = useState([]);
@@ -22,7 +21,7 @@ const Dashboard = () => {
   const [replyTo, setReplyTo] = useState(null);
   const [replyText, setReplyText] = useState('');
   
-  // Chat Modal States
+  
   const [showChatModal, setShowChatModal] = useState(false);
   const [chatComments, setChatComments] = useState([]);
   const [chatLoading, setChatLoading] = useState(false);

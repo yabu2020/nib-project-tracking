@@ -49,7 +49,6 @@ public class ProjectComment {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
     
-    // ✅ ADD THIS METHOD - Exposes parentCommentId to frontend
     @JsonProperty("parentCommentId")
     public Long getParentCommentId() {
         return parentComment != null ? parentComment.getId() : null;

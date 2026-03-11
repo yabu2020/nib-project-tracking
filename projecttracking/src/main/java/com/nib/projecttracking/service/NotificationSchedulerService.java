@@ -49,8 +49,8 @@ public void checkAndNotifyOverdueTasks() {
     System.out.println("Current time: " + java.time.LocalDateTime.now());
     
     try {
-        // Get ALL tasks first to see what's in the database
-        List<Task> allTasks = taskService.findAllTasks(); // Add this method if it doesn't exist
+     
+        List<Task> allTasks = taskService.findAllTasks(); 
         System.out.println("📊 Total tasks in system: " + allTasks.size());
         
         for (Task task : allTasks) {
@@ -61,7 +61,6 @@ public void checkAndNotifyOverdueTasks() {
             System.out.println("    Is Overdue: " + (task.getDueDate() != null && task.getDueDate().isBefore(java.time.LocalDate.now())));
         }
         
-        // Now get overdue tasks
         List<Task> overdueTasks = taskService.findOverdueTasks();
         System.out.println("✅ Found " + overdueTasks.size() + " overdue tasks");
         
