@@ -44,6 +44,15 @@ const filteredProjects = projects.filter(project =>
   }
   return true;
 };
+
+   const getVpnStatusColor = (status) => {
+    switch (status) {
+      case 'REQUESTED': return '#ffc107'; // Amber
+      case 'CONFIGURED': return '#28a745'; // Green
+      case 'NONE': 
+      default: return '#6c757d'; // Gray
+    }
+  };
 const calculateProjectStatus = (endDate, currentStatus = 'GREEN') => {
   if (!endDate) return currentStatus;
   const end = new Date(endDate);
@@ -66,46 +75,58 @@ const getDaysRemaining = (endDate) => {
   useEffect(() => {
     fetchData();
   }, [projectsRefreshTrigger]);
-
-  const fetchData = async () => {
-    console.log('🔄 Fetching projects...');
-    try {
-      const response = await api.get('/api/projects', {
-        params: {
-          userId: currentUser?.id,
-          userRole: currentUser?.role
-        },
-        headers: {
-          'X-User-Id': currentUser?.id  
-        }
-      });
-
-      let projectsData = response.data;
-
-      if (typeof projectsData === 'string') {
-        console.log('📝 Data is a string, parsing...');
-        projectsData = JSON.parse(projectsData);
+ const isQualityAssurance = () => currentUser?.role === 'QUALITY_ASSURANCE';
+ const canSeeApprovalStatus = () => {
+  const managerRoles = ['PROJECT_MANAGER', 'DIGITAL_BANKING_MANAGER'];
+  return managerRoles.includes(currentUser?.role) || isQualityAssurance();
+};
+ const isNetworking = () => currentUser?.role === 'NETWORK_ADMIN';
+ const fetchData = async () => {
+  console.log('🔄 Fetching projects...');
+  try {
+    const response = await api.get('/api/projects', {
+      params: {
+        userId: currentUser?.id,
+        userRole: currentUser?.role
+      },
+      headers: {
+        'X-User-Id': currentUser?.id  
       }
+    });
 
-      if (!Array.isArray(projectsData)) {
-        console.log('⚠️ Data is not an array:', projectsData);
-        projectsData = [];
-      }
+    let projectsData = response.data;
 
-      console.log('✅ Response received:', response);
-      console.log('📦 Parsed ', projectsData);
-      console.log('📊 Is array?', Array.isArray(projectsData));
-
-      setProjects(projectsData);
-    } catch (error) {
-      console.error('❌ Error fetching projects:', error);
-      console.error('Error response:', error.response);
-      setProjects([]);
-    } finally {
-      console.log('⏹️ Setting loading to false');
-      setLoading(false);
+    if (typeof projectsData === 'string') {
+      console.log('📝 Data is a string, parsing...');
+      projectsData = JSON.parse(projectsData);
     }
-  };
+
+    if (!Array.isArray(projectsData)) {
+      console.log('⚠️ Data is not an array:', projectsData);
+      projectsData = [];
+    }
+
+if (isNetworking()) {
+  console.log(' Networking role: Showing VPN requests (pending + completed)');
+  projectsData = projectsData.filter(p => 
+    p.vpnStatus === 'REQUESTED' || p.vpnStatus === 'CONFIGURED'
+  );
+}
+
+    console.log(' Response received:', response);
+    console.log('📦 Parsed ', projectsData);
+    console.log('📊 Is array?', Array.isArray(projectsData));
+
+    setProjects(projectsData);
+  } catch (error) {
+    console.error('❌ Error fetching projects:', error);
+    console.error('Error response:', error.response);
+    setProjects([]);
+  } finally {
+    console.log('⏹️ Setting loading to false');
+    setLoading(false);
+  }
+};
 useEffect(() => {
   const urlParams = new URLSearchParams(window.location.search);
   const projectId = urlParams.get('projectId');
@@ -119,6 +140,24 @@ useEffect(() => {
     }
   }
 }, [projects]);
+const handleApproveProject = async (projectId, action = 'APPROVE') => {
+  const actionText = action === 'APPROVE' ? 'approve' : 'reject';
+  if (!window.confirm(`Are you sure you want to ${actionText} this project?`)) return;
+  
+  try {
+    await api.put(`/api/projects/${projectId}/approve`, {
+      action: action
+    }, {
+      headers: { 'X-User-Id': currentUser?.id }
+    });
+    
+    alert(`Project ${actionText === 'approve' ? 'approved' : 'rejected'} successfully!`);
+    fetchData(); // Refresh project list
+  } catch (error) {
+    console.error(`Error ${actionText}ing project:`, error);
+    alert(`Failed to ${actionText} project: ` + (error.response?.data?.error || error.message));
+  }
+};
   const handleInputChange = (e) => {
     setFormData({
       ...formData,
@@ -313,6 +352,37 @@ const canUploadAttachments = () => {
   return false;
 };
 
+const handleVpnRequest = async (projectId) => {
+    if (!window.confirm('Submit this project for VPN configuration? Networking team will be notified.')) return;
+    try {
+      // Assuming endpoint exists to update VPN status
+      await api.put(`/api/projects/${projectId}/vpn-status`, {
+        vpnStatus: 'REQUESTED'
+      }, {
+        headers: { 'X-User-Id': currentUser?.id }
+      });
+       alert('VPN Request submitted successfully! Networking team has been notified.');
+      fetchData();
+    } catch (error) {
+      console.error('Error submitting VPN request:', error);
+      alert('Failed to submit VPN request.');
+    }
+  };
+   const handleVpnComplete = async (projectId) => {
+    if (!window.confirm('Mark VPN as configured for this project?')) return;
+    try {
+      await api.put(`/api/projects/${projectId}/vpn-status`, {
+        vpnStatus: 'CONFIGURED'
+      }, {
+        headers: { 'X-User-Id': currentUser?.id }
+      });
+       alert('VPN status updated to Configured. Business user has been notified.');
+      fetchData();
+    } catch (error) {
+      console.error('Error updating VPN status:', error);
+      alert('Failed to update VPN status.');
+    }
+  };
 
 const canDeleteAttachments = () => {
   
@@ -403,6 +473,8 @@ const canDeleteAttachments = () => {
               <div><strong>Completion:</strong> {selectedProject.completionPercentage || 0}%</div>
               <div><strong>Start:</strong> {selectedProject.startDate || 'Not set'}</div>
               <div><strong>End:</strong> {selectedProject.endDate || 'Not set'}</div>
+              <div><strong>VPN:</strong> <span style={{ color: getVpnStatusColor(selectedProject.vpnStatus), fontWeight: 'bold' }}>{selectedProject.vpnStatus || 'NONE'}</span></div>
+              
             </div>
           </div>
 
@@ -427,7 +499,7 @@ const canDeleteAttachments = () => {
         marginBottom: '10px',
         fontStyle: 'italic'
       }}>
-        ✅ You can upload files to your projects
+         You can upload files to your projects
       </small>
     )}
 
@@ -537,16 +609,17 @@ const canDeleteAttachments = () => {
   textAlign: 'center'
 }}>
   <h1>
-    {isManager() ? 'All Projects' : 
-     isBusinessRole() ? 'My Projects' : 'My Projects'}
-  </h1>
-  <p>
-    {isManager() ? 'Manage IT projects and track progress' : 
-     isBusinessRole() ? 'Projects you created' : 'Projects assigned to you'}
-  </p>
+  {isNetworking() ? ' VPN Requests' : 
+   isManager() ? 'All Projects' : 
+   isBusinessRole() ? 'My Projects' : 'My Projects'}
+</h1>
+ <p>
+  {isNetworking() ? 'Manage VPN configuration requests' : 
+   isManager() ? 'Manage IT projects and track progress' : 
+   isBusinessRole() ? 'Projects you created' : 'Projects assigned to you'}
+</p>
 </div>
 
-          {/* ✅ NEW: Managers AND business users can create projects */}
 {/* ✅ NEW: Only BUSINESS & DIGITAL_BANKING_MANAGER can create projects */}
 {canCreateProjects() && (
   <button
@@ -587,15 +660,17 @@ const canDeleteAttachments = () => {
   <div style={{ textAlign: 'center', padding: '40px', color: '#666' }}>
     <p style={{ fontSize: '16px', marginBottom: '10px' }}>No projects found</p>
     <p style={{ fontSize: '14px' }}>
-      {isManager()
-        ? 'Click "New Project" to create your first project'
-        : isBusinessRole()
-        ? 'Click "New Project" to create your first project'
-        : 'No projects assigned to you. Wait for tasks to be assigned.'}
+      {isNetworking()
+        ? '📋 No VPN requests to manage yet.' 
+        : isManager()
+          ? 'Click "New Project" to create your first project'
+          : isBusinessRole()
+            ? 'Click "New Project" to create your first project'
+            : 'No projects assigned to you. Wait for tasks to be assigned.'}
     </p>
   </div>
 ) : (
-           <table className="data-table">
+          <table className="data-table">
   <thead>
     <tr>
       <th>Project Name</th>
@@ -603,13 +678,14 @@ const canDeleteAttachments = () => {
       <th>RAG Status</th>
       <th>Start Date</th>
       <th>End Date</th>
-      
-      {/* ✅ Conditionally show "Created By" */}
       {canSeeCreatedBy() && <th>Created By</th>}
-      
       <th>Completion</th>
+      <th>VPN Status</th> 
+       {canSeeApprovalStatus() && <th>Approval Status</th>} 
       <th>Attachments</th>
-      {isManager() && <th>Actions</th>}
+      {isManager() || !isQualityAssurance() && <th>Actions</th>}
+      {(isBusinessRole() || isNetworking()) && <th>VPN Actions</th>}
+       {isQualityAssurance() && <th>Actions</th>}
     </tr>
   </thead>
   <tbody>
@@ -661,7 +737,7 @@ const canDeleteAttachments = () => {
         <td>{project.startDate || 'Not set'}</td>
         <td>{project.endDate || 'Not set'}</td>
         
-        {/* ✅ Conditionally show "Created By" data */}
+        {/* Created By */}
         {canSeeCreatedBy() && (
           <td>{project.manager?.fullName || project.initiatedBy?.fullName || 'N/A'}</td>
         )}
@@ -685,6 +761,42 @@ const canDeleteAttachments = () => {
           </div>
         </td>
         
+      {/* ✅ VPN Status Column */}
+<td>
+  <span style={{
+    padding: '4px 8px',
+    borderRadius: '4px',
+    backgroundColor: getVpnStatusColor(project.vpnStatus),
+    color: project.vpnStatus === 'REQUESTED' ? '#000' : '#fff',
+    fontSize: '11px',
+    fontWeight: 'bold',
+    opacity: project.vpnStatus === 'CONFIGURED' ? 0.85 : 1,  
+    fontStyle: project.vpnStatus === 'CONFIGURED' ? 'italic' : 'normal'  
+  }}>
+    {project.vpnStatus === 'CONFIGURED' ? ' Configured' : project.vpnStatus || 'NONE'}
+  </span>
+</td>
+         {canSeeApprovalStatus() && (
+        <td>
+          <span style={{
+            padding: '4px 8px',
+            borderRadius: '4px',
+            backgroundColor: project.approvalStatus === 'APPROVED' ? '#28a745' : 
+                           project.approvalStatus === 'REJECTED' ? '#dc3545' : '#ffc107',
+            color: project.approvalStatus === 'PENDING' ? '#000' : '#fff',
+            fontSize: '11px',
+            fontWeight: 'bold'
+          }}>
+            {project.approvalStatus || 'PENDING'}
+          </span>
+          {/* Show approver info if approved */}
+          {project.approvalStatus === 'APPROVED' && project.approvedBy && (
+            <div style={{ fontSize: '10px', color: '#666', marginTop: '3px' }}>
+              by {project.approvedBy.fullName}
+            </div>
+          )}
+        </td>
+      )}
         {/* Attachments */}
         <td>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -708,45 +820,107 @@ const canDeleteAttachments = () => {
           </div>
         </td>
         
-        {/* Actions - only for managers or editable projects */}
-        {canEditProjects() && (
-          <td>
-            <div style={{ display: 'flex', gap: '5px' }}>
-              {(currentUser?.role !== 'BUSINESS' || project.initiatedBy?.id === currentUser?.id) && (
-                <>
-                  <button
-                    className="btn btn-primary"
-                    style={{ padding: '5px 10px', fontSize: '12px' }}
-                    onClick={() => handleEdit(project)}
-                  >
-                    ✏️ Edit
-                  </button>
-                  <button
-                    className="btn btn-danger"
-                    style={{ padding: '5px 10px', fontSize: '12px' }}
-                    onClick={() => handleDelete(project.id)}
-                  >
-                    🗑️ Delete
-                  </button>
-                </>
-              )}
-              {currentUser?.role === 'BUSINESS' && project.initiatedBy?.id !== currentUser?.id && (
-                <span style={{ fontSize: '12px', color: '#999', fontStyle: 'italic' }}>
-                  View only
-                </span>
-              )}
-            </div>
-          </td>
-        )}
+        {/* Actions - only for managers */}
+       {/* Actions - only for managers (excluding QA) */}
+{isManager() && !isQualityAssurance() && (
+  <td>
+    <div style={{ display: 'flex', gap: '5px' }}>
+      <button
+        className="btn btn-primary"
+        style={{ padding: '5px 10px', fontSize: '12px' }}
+        onClick={() => handleEdit(project)}
+      >
+        ✏️ Edit
+      </button>
+      <button
+        className="btn btn-danger"
+        style={{ padding: '5px 10px', fontSize: '12px' }}
+        onClick={() => handleDelete(project.id)}
+      >
+        🗑️ Delete
+      </button>
+    </div>
+  </td>
+)}
         
-        {/* View only for QA */}
-        {currentUser?.role === 'QUALITY_ASSURANCE' && (
-          <td>
-            <span style={{ fontSize: '12px', color: '#999', fontStyle: 'italic' }}>
-              View only
+       {/* VPN Actions - for Business and Networking */}
+{(isBusinessRole() || isNetworking()) && (
+  <td>
+    {isBusinessRole() && project.vpnStatus !== 'CONFIGURED' && (
+      <button 
+        className="btn btn-primary" 
+        style={{ 
+          padding: '5px 10px', 
+          fontSize: '11px', 
+          backgroundColor: project.vpnStatus === 'REQUESTED' ? '#ffc107' : '#8B4513', 
+          color: project.vpnStatus === 'REQUESTED' ? '#000' : '#fff'
+        }}
+        onClick={() => handleVpnRequest(project.id)}
+        disabled={project.vpnStatus === 'REQUESTED'}
+      >
+        {project.vpnStatus === 'REQUESTED' ? '⏳ Pending' : '📡 Submit for VPN'}
+      </button>
+    )}
+    {isBusinessRole() && project.vpnStatus === 'CONFIGURED' && (
+      <span style={{ fontSize: '11px', color: '#28a745', fontWeight: 'bold' }}>
+        Configured
+      </span>
+    )}
+    
+    {isNetworking() && project.vpnStatus === 'REQUESTED' && (
+      <button 
+        className="btn btn-success" 
+        style={{ padding: '5px 10px', fontSize: '11px' }}
+        onClick={() => handleVpnComplete(project.id)}
+      >
+         Mark Complete
+      </button>
+    )}
+    
+    {/* ✅ Show "Completed" badge instead of button for networking */}
+    {isNetworking() && project.vpnStatus === 'CONFIGURED' && (
+      <span style={{ fontSize: '11px', color: '#28a745', fontWeight: 'bold', fontStyle: 'italic' }}>
+         Completed
+      </span>
+    )}
+    
+    {isNetworking() && project.vpnStatus !== 'REQUESTED' && project.vpnStatus !== 'CONFIGURED' && (
+      <span style={{ fontSize: '11px', color: '#999' }}>
+        No Request
+      </span>
+    )}
+  </td>
+)}
+     {isQualityAssurance() && (
+        <td>
+          {project.approvalStatus === 'PENDING' ? (
+            <div style={{ display: 'flex', gap: '5px', flexDirection: 'column' }}>
+              <button 
+                className="btn btn-success" 
+                style={{ padding: '5px 10px', fontSize: '11px' }}
+                onClick={() => handleApproveProject(project.id, 'APPROVE')}
+              >
+                 Approve
+              </button>
+              <button 
+                className="btn btn-danger" 
+                style={{ padding: '5px 10px', fontSize: '11px' }}
+                onClick={() => handleApproveProject(project.id, 'REJECT')}
+              >
+                 Reject
+              </button>
+            </div>
+          ) : project.approvalStatus === 'APPROVED' ? (
+            <span style={{ fontSize: '11px', color: '#28a745', fontWeight: 'bold' }}>
+               Approved
             </span>
-          </td>
-        )}
+          ) : (
+            <span style={{ fontSize: '11px', color: '#dc3545', fontWeight: 'bold' }}>
+               Rejected
+            </span>
+          )}
+        </td>
+      )}
       </tr>
     ))}
   </tbody>
@@ -755,8 +929,7 @@ const canDeleteAttachments = () => {
         </div>
       </div>
 
-      {/* Create/Edit Modal */}
-      {/* ✅ NEW: Managers AND business users see the modal */}
+    
 {/* ✅ NEW: Only BUSINESS & DIGITAL_BANKING_MANAGER see the modal */}
 {showModal && canCreateProjects() && (
         <div style={{

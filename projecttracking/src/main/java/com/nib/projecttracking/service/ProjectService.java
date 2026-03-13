@@ -200,6 +200,44 @@ public class ProjectService {
     }
 
     /**
+ * Update VPN status for a project
+ */
+public Project updateVpnStatus(Long projectId, Project.VpnStatus vpnStatus, User currentUser) {
+    Project project = projectRepository.findById(projectId)
+            .orElseThrow(() -> new RuntimeException("Project not found: " + projectId));
+
+    Project.VpnStatus oldVpnStatus = project.getVpnStatus();
+    
+    // Update the VPN status
+    project.setVpnStatus(vpnStatus);
+    project.setUpdatedAt(java.time.LocalDateTime.now());
+    
+    Project saved = projectRepository.save(project);
+    
+    // Log the action if user is available
+    if (currentUser != null && oldVpnStatus != vpnStatus) {
+        String details = String.format("VPN status changed: %s → %s for project '%s' (ID: %d)",
+                oldVpnStatus, vpnStatus, project.getProjectName(), projectId);
+        
+        try {
+            activityLogService.logAction(
+                    currentUser,
+                    "PROJECT_VPN_STATUS_UPDATED",
+                    "Project",
+                    projectId,
+                    details
+            );
+            System.out.println("📝 VPN status update logged by: " + currentUser.getUsername());
+        } catch (Exception logError) {
+            System.err.println("⚠️ Failed to log VPN status update: " + logError.getMessage());
+        }
+    }
+    
+    return saved;
+}
+
+
+    /**
      * Delete project - LEGACY METHOD (for backward compatibility)
      */
     public void deleteProject(Long projectId) {
@@ -307,7 +345,16 @@ public Optional<Project> findProjectByIdWithDetails(Long projectId) {
     @Transactional(readOnly = true)
     public List<Project> findProjectsByManager(User manager) {
         return projectRepository.findByManager(manager);
-    }
+    }@Transactional(readOnly = true)
+public List<Project> findProjectsByVpnStatus(Project.VpnStatus vpnStatus) {
+    return projectRepository.findByVpnStatus(vpnStatus);
+}
+
+@Transactional(readOnly = true)
+public List<Project> findProjectsByInitiatorAndVpnStatus(User initiatedBy, Project.VpnStatus vpnStatus) {
+    if (initiatedBy == null) return Collections.emptyList();
+    return projectRepository.findByInitiatorIdAndVpnStatus(initiatedBy.getId(), vpnStatus);
+}
 
     /**
      * Assign manager to project

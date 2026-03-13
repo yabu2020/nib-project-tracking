@@ -579,7 +579,7 @@ const Tasks = () => {
                   <th>Due Date</th>
                   <th>Status</th>
                   <th>Attachments</th>
-                  <th>Actions</th>
+                  {isManager() && <th>Actions</th>}
                 </tr>
               </thead>
               <tbody>

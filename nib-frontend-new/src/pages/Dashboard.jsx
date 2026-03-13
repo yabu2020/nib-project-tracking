@@ -163,6 +163,33 @@ useEffect(() => {
       console.log('✅ Dashboard stats response:', response.data);
       let statsData = response.data;
       
+      if (isNetworking()) {
+      const projectsResponse = await api.get('/api/projects', {
+        params: {
+          userId: currentUser?.id,
+          userRole: currentUser?.role
+        }
+      });
+      let projectsData = projectsResponse.data;
+      if (typeof projectsData === 'string') {
+        projectsData = JSON.parse(projectsData);
+      }
+      const vpnPendingProjects = Array.isArray(projectsData)
+        ? projectsData.filter(project => project.vpnStatus === 'REQUESTED')
+        : [];
+      
+      statsData = {
+        totalProjects: vpnPendingProjects.length,
+        activeProjects: vpnPendingProjects.filter(p => p.status === 'IN_PROGRESS').length,
+        completedProjects: 0,
+        vpnRequestsPending: vpnPendingProjects.length,
+        overdueTasks: 0,
+        overdueMilestones: 0,
+        activeBlockers: 0,
+        upcomingMilestones: statsData.upcomingMilestones || 0,
+        criticalProjects: statsData.criticalProjects || 0
+      };
+    }
       if (isBusiness()) {
         const projectsResponse = await api.get('/api/projects', {
           params: {
@@ -204,6 +231,7 @@ useEffect(() => {
         totalProjects: 0,
         activeProjects: 0,
         completedProjects: 0,
+        vpnRequestsPending: 0,
         overdueTasks: 0,
         overdueMilestones: 0,
         activeBlockers: 0
@@ -225,8 +253,19 @@ useEffect(() => {
       if (typeof projectsData === 'string') {
         projectsData = JSON.parse(projectsData);
       }
-
-      if (isTechnicalStaff()) {
+       // ✅ Handle QUALITY_ASSURANCE role explicitly
+    if (currentUser?.role === 'QUALITY_ASSURANCE') {
+      console.log('🔍 QA role: Showing all projects');
+      setRecentProjects(Array.isArray(projectsData) ? projectsData.slice(0, 5) : []);
+      return;
+    }
+       if (isNetworking()) {
+      const vpnPendingProjects = Array.isArray(projectsData)
+        ? projectsData.filter(project => project.vpnStatus === 'REQUESTED')
+        : [];
+      setRecentProjects(vpnPendingProjects.slice(0, 5));
+    }
+      else if (isTechnicalStaff()) {
         const tasksResponse = await api.get('/api/tasks', {
           params: {
             userId: currentUser?.id,
@@ -561,7 +600,9 @@ const loadComments = async (projectId) => {
       default: return '#6c757d';
     }
   };
+  
 
+  const isNetworking = () => currentUser?.role === 'NETWORK_ADMIN';
   const isExecutive = () => ['CEO', 'DEPUTY_CHIEF', 'DIRECTOR'].includes(currentUser?.role);
   const hasFullAccess = () => currentUser?.role === 'DIGITAL_BANKING_MANAGER';
   const isRestrictedManager = () => currentUser?.role === 'PROJECT_MANAGER';
@@ -579,7 +620,7 @@ const loadComments = async (projectId) => {
     return true;
   };
 
-  const canViewProjects = () => isTechnicalStaff() || isQUALITY() || isExecutive() || isBusiness() || hasFullAccess() || isRestrictedManager();
+  const canViewProjects = () => isNetworking()||isTechnicalStaff() || isQUALITY() || isExecutive() || isBusiness() || hasFullAccess() || isRestrictedManager();
   const canViewTasks = () => hasFullAccess() || isTechnicalStaff() || isQUALITY();
   const canViewMilestones = () => hasFullAccess() || isQUALITY();
   const canViewUpdates = () => hasFullAccess() || isTechnicalStaff();
@@ -588,6 +629,7 @@ const loadComments = async (projectId) => {
   const canViewActivityLogs = () => hasFullAccess();
   const canViewReports = () => hasFullAccess() || isExecutive() || isQUALITY();
 
+  
   const handleLogout = async () => {
     try {
       await api.post('/api/auth/logout', {}, {
@@ -656,24 +698,42 @@ const loadComments = async (projectId) => {
       {/* Main Content */}
       <div className="main-content">
         {/* Statistics Cards */}
-        <div className="stats-grid">
-          <div className="stat-card">
-            <div className="stat-label">Total Projects</div>
-            <div className="stat-value">{stats?.totalProjects ?? 0}</div>
-          </div>
-          <div className="stat-card green">
-            <div className="stat-label">Active Projects</div>
-            <div className="stat-value">{stats?.activeProjects ?? 0}</div>
-          </div>
-          <div className="stat-card blue">
-            <div className="stat-label">Completed Projects</div>
-            <div className="stat-value">{stats?.completedProjects ?? 0}</div>
-          </div>
-          <div className="stat-card amber">
-            <div className="stat-label">Overdue Tasks</div>
-            <div className="stat-value">{stats?.overdueTasks ?? 0}</div>
-          </div>
-        </div>
+        {/* Statistics Cards */}
+<div className="stats-grid">
+  {/* ✅ For NETWORK_ADMIN: Only show these 2 cards */}
+  {isNetworking() ? (
+    <>
+      <div className="stat-card">
+        <div className="stat-label">Total VPN Requests</div>
+        <div className="stat-value">{stats?.totalProjects ?? 0}</div>
+      </div>
+      <div className="stat-card" style={{ backgroundColor: '#763997', color: 'white' }}>
+        <div className="stat-label"> Pending Configuration</div>
+        <div className="stat-value">{stats?.vpnRequestsPending ?? 0}</div>
+      </div>
+    </>
+  ) : (
+    /* ✅ For other roles: Show all cards */
+    <>
+      <div className="stat-card">
+        <div className="stat-label">Total Projects</div>
+        <div className="stat-value">{stats?.totalProjects ?? 0}</div>
+      </div>
+      <div className="stat-card green">
+        <div className="stat-label">Active Projects</div>
+        <div className="stat-value">{stats?.activeProjects ?? 0}</div>
+      </div>
+      <div className="stat-card blue">
+        <div className="stat-label">Completed Projects</div>
+        <div className="stat-value">{stats?.completedProjects ?? 0}</div>
+      </div>
+      <div className="stat-card amber">
+        <div className="stat-label">Overdue Tasks</div>
+        <div className="stat-value">{stats?.overdueTasks ?? 0}</div>
+      </div>
+    </>
+  )}
+</div>
 
         {/* Quick Actions */}
         {(hasFullAccess() || isExecutive() || isRestrictedManager()) && (
@@ -726,68 +786,113 @@ const loadComments = async (projectId) => {
 
         {/* Recent Projects Table */}
         <div className="content-card">
-          <h2>{isTechnicalStaff() ? 'My Projects' : 'Recent Projects'}</h2>
+          <h2>
+            {isNetworking() ? 'VPN Requests Pending' : 
+     isTechnicalStaff() ? 'My Projects' : 'Recent Projects'}</h2>
           <table className="data-table">
             <thead>
               <tr>
                 <th>Project Name</th>
                 <th>Type</th>
                 <th>RAG Status</th>
-                {canSeeCreatedBy() && <th>Created By</th>}
+                {isNetworking() && <th>VPN Request Date</th>}
+                {canSeeCreatedBy() && !isNetworking() && <th>Created By</th>}
                 <th>Completion</th>
-                <th>{isCEO() ? 'Feedback' : 'Team Comments'}</th>
+                 {!isNetworking() && <th>{isCEO() ? 'Feedback' : 'Team Comments'}</th>}
+                 {isNetworking() && <th>Actions</th>}
               </tr>
             </thead>
-            <tbody>
-              {recentProjects.length > 0 ? (
-                recentProjects.map((project) => (
-                  <tr key={project.id}>
-                    <td style={{ fontWeight: '600' }}>{project.projectName}</td>
-                    <td><span className="badge badge-green">{project.projectType}</span></td>
-                    <td>
-                      <span className="badge" style={{
-                        backgroundColor: getRagColor(project.ragStatus),
-                        color: project.ragStatus === 'AMBER' ? '#000' : '#fff'
-                      }}>
-                        {project.ragStatus}
-                      </span>
-                    </td>
-                    {canSeeCreatedBy() && (
-                      <td>{project.manager?.fullName || project.initiatedBy?.fullName || 'N/A'}</td>
-                    )}
-                    <td>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <div style={{ flex: 1, height: '8px', backgroundColor: '#e0e0e0', borderRadius: '4px' }}>
-                          <div style={{
-                            width: `${project.completionPercentage || 0}%`,
-                            height: '100%',
-                            backgroundColor: '#003366',
-                            borderRadius: '4px'
-                          }} />
-                        </div>
-                        <span style={{ fontSize: '12px', minWidth: '40px' }}>
-                          {project.completionPercentage || 0}%
-                        </span>
-                      </div>
-                    </td>
-                    <td>
-                      <button className="btn btn-primary" style={{ padding: '5px 10px', fontSize: '12px' }}
-                        onClick={() => openCommentsModal(project)}>
-                        💬 {isCEO() ? 'Feedback' : 'Comments'}
-                      </button>
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan="7" style={{ textAlign: 'center', padding: '40px', color: '#666' }}>
-                    {isTechnicalStaff()
-                      ? 'No projects assigned to you. Wait for tasks to be assigned.'
-                      : 'No projects available. Create your first project!'}
-                  </td>
-                </tr>
-              )}
-            </tbody>
+           <tbody>
+  {recentProjects.length > 0 ? (
+    recentProjects.map((project) => (
+      <tr key={project.id}>
+        <td style={{ fontWeight: '600' }}>{project.projectName}</td>
+        <td><span className="badge badge-green">{project.projectType}</span></td>
+        <td>
+          <span className="badge" style={{
+            backgroundColor: getRagColor(project.ragStatus),
+            color: project.ragStatus === 'AMBER' ? '#000' : '#fff'
+          }}>
+            {project.ragStatus}
+          </span>
+        </td>
+        
+        {isNetworking() && (
+          <td>
+            {project.updatedAt 
+              ? new Date(project.updatedAt).toLocaleDateString() 
+              : 'N/A'}
+          </td>
+        )}
+        
+        {canSeeCreatedBy() && !isNetworking() && (
+          <td>{project.manager?.fullName || project.initiatedBy?.fullName || 'N/A'}</td>
+        )}
+        
+        <td>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div style={{ flex: 1, height: '8px', backgroundColor: '#e0e0e0', borderRadius: '4px' }}>
+              <div style={{
+                width: `${project.completionPercentage || 0}%`,
+                height: '100%',
+                backgroundColor: '#003366',
+                borderRadius: '4px'
+              }} />
+            </div>
+            <span style={{ fontSize: '12px', minWidth: '40px' }}>
+              {project.completionPercentage || 0}%
+            </span>
+          </div>
+        </td>
+        
+        {/* ✅ Hide Comments button for NETWORK_ADMIN, show Mark Complete instead */}
+        {isNetworking() ? (
+          <td>
+            <button 
+              className="btn btn-success" 
+              style={{ padding: '5px 10px', fontSize: '11px' }}
+              onClick={async () => {
+                if (!window.confirm(`Mark VPN as configured for "${project.projectName}"?`)) return;
+                try {
+                  await api.put(`/api/projects/${project.id}/vpn-status`, {
+                    vpnStatus: 'CONFIGURED'
+                  }, {
+                    headers: { 'X-User-Id': currentUser?.id }
+                  });
+                  alert('✅ VPN marked as configured! Business user has been notified.');
+                  fetchRecentProjects();
+                  fetchDashboardStats();
+                } catch (error) {
+                  alert('Failed to update VPN status: ' + (error.response?.data?.error || error.message));
+                }
+              }}
+            >
+              🔧 Mark Complete
+            </button>
+          </td>
+        ) : (
+          <td>
+            <button className="btn btn-primary" style={{ padding: '5px 10px', fontSize: '12px' }}
+              onClick={() => openCommentsModal(project)}>
+              💬 {isCEO() ? 'Feedback' : 'Comments'}
+            </button>
+          </td>
+        )}
+      </tr>
+    ))
+  ) : (
+    <tr>
+      {/* ✅ Update colSpan based on role */}
+      <td colSpan={isNetworking() ? 6 : 7} style={{ textAlign: 'center', padding: '40px', color: '#666' }}>
+        {isNetworking()
+          ? '🎉 All VPN requests have been processed!'
+          : isTechnicalStaff()
+            ? 'No projects assigned to you. Wait for tasks to be assigned.'
+            : 'No projects available. Create your first project!'}
+      </td>
+    </tr>
+  )}
+</tbody>
           </table>
         </div>
 
@@ -955,21 +1060,24 @@ const loadComments = async (projectId) => {
       </div>
 
       {/* Floating Chat Button */}
-      <button
-        onClick={() => { setShowChatModal(true); fetchAllComments(); }}
-        style={{
-          position: 'fixed', bottom: '30px', right: '30px', width: '60px', height: '60px',
-          backgroundColor: '#8B4513', color: 'white', border: 'none', borderRadius: '50%',
-          boxShadow: '0 4px 12px rgba(139, 69, 19, 0.4)', cursor: 'pointer', fontSize: '28px',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
-          transition: 'all 0.3s ease', animation: 'pulse 2s infinite'
-        }}
-        onMouseEnter={(e) => { e.target.style.transform = 'scale(1.1)'; e.target.style.boxShadow = '0 6px 16px rgba(139, 69, 19, 0.5)'; }}
-        onMouseLeave={(e) => { e.target.style.transform = 'scale(1)'; e.target.style.boxShadow = '0 4px 12px rgba(139, 69, 19, 0.4)'; }}
-        title="Project Comments Chat"
-      >
-        💬
-      </button>
+      {/* ✅ Hide Floating Chat Button for NETWORK_ADMIN */}
+{!isNetworking() && (
+  <button
+    onClick={() => { setShowChatModal(true); fetchAllComments(); }}
+    style={{
+      position: 'fixed', bottom: '30px', right: '30px', width: '60px', height: '60px',
+      backgroundColor: '#8B4513', color: 'white', border: 'none', borderRadius: '50%',
+      boxShadow: '0 4px 12px rgba(139, 69, 19, 0.4)', cursor: 'pointer', fontSize: '28px',
+      display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
+      transition: 'all 0.3s ease', animation: 'pulse 2s infinite'
+    }}
+    onMouseEnter={(e) => { e.target.style.transform = 'scale(1.1)'; e.target.style.boxShadow = '0 6px 16px rgba(139, 69, 19, 0.5)'; }}
+    onMouseLeave={(e) => { e.target.style.transform = 'scale(1)'; e.target.style.boxShadow = '0 4px 12px rgba(139, 69, 19, 0.4)'; }}
+    title="Project Comments Chat"
+  >
+    💬
+  </button>
+)}
 
       {/* Chat Modal */}
       {showChatModal && (

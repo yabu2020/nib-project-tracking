@@ -51,6 +51,12 @@ public interface ProjectRepository extends JpaRepository<Project, Long> {
     @Query("SELECT DISTINCT p FROM Project p LEFT JOIN FETCH p.manager WHERE p.projectType = :projectType")
     List<Project> findByProjectType(@Param("projectType") String projectType);
 
+@Query("SELECT p FROM Project p WHERE p.vpnStatus = :vpnStatus ORDER BY p.updatedAt DESC")
+List<Project> findByVpnStatus(@Param("vpnStatus") Project.VpnStatus vpnStatus);
+
+@Query("SELECT p FROM Project p WHERE p.initiatedBy.id = :initiatorId AND p.vpnStatus = :vpnStatus")
+List<Project> findByInitiatorIdAndVpnStatus(@Param("initiatorId") Long initiatorId, 
+                                            @Param("vpnStatus") Project.VpnStatus vpnStatus);
     
 
     long countByStatus(Project.ProjectStatus status);

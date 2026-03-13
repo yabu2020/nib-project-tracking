@@ -100,6 +100,7 @@ public class User {
         JUNIOR_IT_OFFICER,
         IT_GRADUATE_TRAINEE,
         PROJECT_MANAGER,
-        DEVELOPER
+        DEVELOPER,
+        NETWORK_ADMIN
     }
 }

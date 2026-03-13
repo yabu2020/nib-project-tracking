@@ -40,6 +40,21 @@ public class Project {
     
     @Enumerated(EnumType.STRING)
     private RagStatus ragStatus;
+
+  @Enumerated(EnumType.STRING)
+@Column(name = "approval_status", nullable = true) 
+private ApprovalStatus approvalStatus = ApprovalStatus.PENDING;
+
+@ManyToOne(fetch = FetchType.LAZY)
+@JoinColumn(name = "approved_by")
+@JsonBackReference("project-approvedBy")
+private User approvedBy;
+
+private LocalDateTime approvedAt;
+
+   @Enumerated(EnumType.STRING)
+@Column(name = "vpn_status", nullable = true)  
+private VpnStatus vpnStatus;
     
     private Integer completionPercentage;
     
@@ -85,6 +100,27 @@ public class Project {
     public enum RagStatus {
         GREEN, AMBER, RED
     }
+    public enum VpnStatus {
+    NONE,           
+    REQUESTED,     
+    CONFIGURED      
+}
+public enum ApprovalStatus {
+    PENDING,     
+    APPROVED,     
+    REJECTED      
+}
+
+public ApprovalStatus getApprovalStatus() {
+    return approvalStatus != null ? approvalStatus : ApprovalStatus.PENDING;
+}
+
+public void setApprovalStatus(ApprovalStatus approvalStatus) {
+    this.approvalStatus = approvalStatus;
+}
+public VpnStatus getVpnStatus() {
+    return vpnStatus != null ? vpnStatus : VpnStatus.NONE;
+}
     
     @PrePersist
     protected void onCreate() {
@@ -93,6 +129,7 @@ public class Project {
         if (status == null) status = ProjectStatus.PLANNED;
         if (ragStatus == null) ragStatus = RagStatus.GREEN;
         if (completionPercentage == null) completionPercentage = 0;
+        if (vpnStatus == null) vpnStatus = VpnStatus.NONE;
     }
     
     @PreUpdate

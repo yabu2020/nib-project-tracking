@@ -463,7 +463,7 @@ const handleLogout = () => {
                   <th>Target Date</th>
                   <th>Progress</th>
                   <th>Status</th>
-                  <th>Actions</th>
+                 {isManager() && <th>Actions</th>}
                 </tr>
               </thead>
               <tbody>
@@ -533,11 +533,6 @@ const handleLogout = () => {
     >
       Delete
     </button>
-  )}
-  {!canDeleteMilestone() && (
-    <span style={{ fontSize: '12px', color: '#999', fontStyle: 'italic' }}>
-      View only
-    </span>
   )}
 </td>
                   </tr>

@@ -234,7 +234,11 @@ const handleLogout = () => {
     };
     return colors[status] || '#6c757d';
   };
-
+const canDeleteApi = () => {
+  
+  if (currentUser?.role === 'QUALITY_ASSURANCE') return false;
+  return isManager() || isTechnicalStaff();
+};
  
   const filteredApis = (Array.isArray(apis) ? apis : []).filter(a => {
     if (filterStage !== 'all' && a.lifecycleStage !== filterStage) return false;
@@ -503,7 +507,7 @@ const handleLogout = () => {
                   <th>Status</th>
                   <th>Endpoint</th>
                   <th>Documentation</th>
-                  <th>Actions</th>
+                  {isManager() && <th>Actions</th>}
                 </tr>
               </thead>
               <tbody>
@@ -593,15 +597,17 @@ const handleLogout = () => {
           <span style={{ color: '#999', fontSize: '12px' }}>Not set</span>
         )}
       </td>
-                    <td>
-                      <button 
-                        className="btn btn-danger"
-                        style={{ padding: '5px 10px', fontSize: '12px' }}
-                        onClick={() => handleDelete(apiItem.id)}
-                      >
-                        Delete
-                      </button>
-                    </td>
+             {canDeleteApi() && (
+  <td>
+    <button 
+      className="btn btn-danger"
+      style={{ padding: '5px 10px', fontSize: '12px' }}
+      onClick={() => handleDelete(apiItem.id)}
+    >
+      Delete
+    </button>
+  </td>
+)}
                   </tr>
                 ))}
               </tbody>
