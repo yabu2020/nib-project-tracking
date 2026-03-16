@@ -683,7 +683,7 @@ const canDeleteAttachments = () => {
       <th>VPN Status</th> 
        {canSeeApprovalStatus() && <th>Approval Status</th>} 
       <th>Attachments</th>
-      {isManager() || !isQualityAssurance() && <th>Actions</th>}
+      {(isManager() && !isQualityAssurance()) && <th>Actions</th>}
       {(isBusinessRole() || isNetworking()) && <th>VPN Actions</th>}
        {isQualityAssurance() && <th>Actions</th>}
     </tr>
