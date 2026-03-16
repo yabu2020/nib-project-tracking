@@ -78,7 +78,7 @@ const getDaysRemaining = (endDate) => {
  const isQualityAssurance = () => currentUser?.role === 'QUALITY_ASSURANCE';
  const canSeeApprovalStatus = () => {
   const managerRoles = ['PROJECT_MANAGER', 'DIGITAL_BANKING_MANAGER'];
-  return managerRoles.includes(currentUser?.role) || isQualityAssurance();
+  return managerRoles.includes(currentUser?.role) || isQualityAssurance() || isBusinessRole();
 };
  const isNetworking = () => currentUser?.role === 'NETWORK_ADMIN';
  const fetchData = async () => {
@@ -142,7 +142,7 @@ useEffect(() => {
 }, [projects]);
 const handleApproveProject = async (projectId, action = 'APPROVE') => {
   const actionText = action === 'APPROVE' ? 'approve' : 'reject';
-  if (!window.confirm(`Are you sure you want to ${actionText} this project?`)) return;
+  // Remove the confirm dialog from here since we added it in the button onClick
   
   try {
     await api.put(`/api/projects/${projectId}/approve`, {
@@ -892,35 +892,70 @@ const canDeleteAttachments = () => {
   </td>
 )}
      {isQualityAssurance() && (
-        <td>
-          {project.approvalStatus === 'PENDING' ? (
-            <div style={{ display: 'flex', gap: '5px', flexDirection: 'column' }}>
-              <button 
-                className="btn btn-success" 
-                style={{ padding: '5px 10px', fontSize: '11px' }}
-                onClick={() => handleApproveProject(project.id, 'APPROVE')}
-              >
-                 Approve
-              </button>
-              <button 
-                className="btn btn-danger" 
-                style={{ padding: '5px 10px', fontSize: '11px' }}
-                onClick={() => handleApproveProject(project.id, 'REJECT')}
-              >
-                 Reject
-              </button>
-            </div>
-          ) : project.approvalStatus === 'APPROVED' ? (
-            <span style={{ fontSize: '11px', color: '#28a745', fontWeight: 'bold' }}>
-               Approved
-            </span>
-          ) : (
-            <span style={{ fontSize: '11px', color: '#dc3545', fontWeight: 'bold' }}>
-               Rejected
-            </span>
-          )}
-        </td>
-      )}
+  <td>
+    <div style={{ display: 'flex', gap: '5px', flexDirection: 'column' }}>
+      {/* Approve Button */}
+      <button 
+        className="btn btn-success" 
+        style={{ 
+          padding: '5px 10px', 
+          fontSize: '11px',
+          opacity: project.approvalStatus === 'APPROVED' ? 0.5 : 1,
+          cursor: project.approvalStatus === 'APPROVED' ? 'not-allowed' : 'pointer',
+          backgroundColor: project.approvalStatus === 'APPROVED' ? '#28a745' : '#28a745'
+        }}
+        onClick={() => {
+          if (project.approvalStatus === 'APPROVED') {
+            alert('Project is already approved');
+            return;
+          }
+          if (window.confirm(`Are you sure you want to APPROVE this project "${project.projectName}"?`)) {
+            handleApproveProject(project.id, 'APPROVE');
+          }
+        }}
+        disabled={project.approvalStatus === 'APPROVED'}
+      >
+        {project.approvalStatus === 'APPROVED' ? '✓ Approved' : 'Approve'}
+      </button>
+      
+      {/* Reject Button */}
+      <button 
+        className="btn btn-danger" 
+        style={{ 
+          padding: '5px 10px', 
+          fontSize: '11px',
+          opacity: project.approvalStatus === 'REJECTED' ? 0.5 : 1,
+          cursor: project.approvalStatus === 'REJECTED' ? 'not-allowed' : 'pointer'
+        }}
+        onClick={() => {
+          if (project.approvalStatus === 'REJECTED') {
+            alert('Project is already rejected');
+            return;
+          }
+          if (window.confirm(`Are you sure you want to REJECT this project "${project.projectName}"?`)) {
+            handleApproveProject(project.id, 'REJECT');
+          }
+        }}
+        disabled={project.approvalStatus === 'REJECTED'}
+      >
+        {project.approvalStatus === 'REJECTED' ? '✗ Rejected' : 'Reject'}
+      </button>
+      
+      {/* Status Indicator */}
+      <div style={{ 
+        fontSize: '10px', 
+        textAlign: 'center', 
+        marginTop: '5px',
+        color: project.approvalStatus === 'APPROVED' ? '#28a745' : 
+               project.approvalStatus === 'REJECTED' ? '#dc3545' : '#ffc107',
+        fontWeight: 'bold'
+      }}>
+        {project.approvalStatus === 'PENDING' ? '⏳ Pending Review' : 
+         project.approvalStatus === 'APPROVED' ? '✓ Approved' : '✗ Rejected'}
+      </div>
+    </div>
+  </td>
+)}
       </tr>
     ))}
   </tbody>
