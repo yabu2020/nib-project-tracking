@@ -236,6 +236,62 @@ public Project updateVpnStatus(Long projectId, Project.VpnStatus vpnStatus, User
     return saved;
 }
 
+/**
+ * Approve or Reject a project (Quality Assurance action)
+ */
+public Project approveOrRejectProject(Long projectId, String action, User currentUser) {
+    if (!"APPROVE".equalsIgnoreCase(action) && !"REJECT".equalsIgnoreCase(action)) {
+        throw new IllegalArgumentException("Invalid action: " + action + ". Must be APPROVE or REJECT");
+    }
+    
+    Project project = projectRepository.findById(projectId)
+            .orElseThrow(() -> new RuntimeException("Project not found: " + projectId));
+
+    Project.ApprovalStatus oldStatus = project.getApprovalStatus();
+    
+  
+    Project.ApprovalStatus newStatus = "APPROVE".equalsIgnoreCase(action) 
+            ? Project.ApprovalStatus.APPROVED 
+            : Project.ApprovalStatus.REJECTED;
+    
+    project.setApprovalStatus(newStatus);
+    project.setApprovedBy(currentUser);  
+    project.setApprovedAt(java.time.LocalDateTime.now());
+    project.setUpdatedAt(java.time.LocalDateTime.now());
+    
+    Project savedProject = projectRepository.save(project);
+    
+  
+    if (currentUser != null) {
+        String actionType = "APPROVE".equalsIgnoreCase(action) ? "PROJECT_APPROVED" : "PROJECT_REJECTED";
+        String actionVerb = "APPROVE".equalsIgnoreCase(action) ? "approved" : "rejected";
+        
+        String details = String.format("Project %s by Quality Assurance: '%s' (ID: %d) | Previous status: %s → %s",
+                actionVerb,
+                project.getProjectName(),
+                projectId,
+                oldStatus != null ? oldStatus : "PENDING",
+                newStatus);
+        
+        try {
+            activityLogService.logAction(
+                    currentUser,
+                    actionType,           
+                    "Project",            
+                    projectId,            
+                    details              
+            );
+            System.out.println("📝 QA " + actionVerb + " action logged by: " + currentUser.getUsername());
+        } catch (Exception logError) {
+            System.err.println("⚠️ Failed to log QA " + actionVerb + " action: " + logError.getMessage());
+            
+        }
+    } else {
+        System.out.println("⚠️ WARNING: currentUser is null - QA action logging skipped!");
+    }
+    
+    return savedProject;
+}
 
     /**
      * Delete project - LEGACY METHOD (for backward compatibility)

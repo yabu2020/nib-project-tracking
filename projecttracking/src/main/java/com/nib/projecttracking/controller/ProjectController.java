@@ -305,67 +305,51 @@ public class ProjectController {
     }
 
     @PutMapping("/{id}/approve")
-    public ResponseEntity<?> approveProject(
-            @PathVariable Long id,
-            @RequestBody Map<String, String> data,
-            @RequestHeader(value = "X-User-Id", required = false) Long currentUserId) {
+public ResponseEntity<?> approveProject(
+        @PathVariable Long id,
+        @RequestBody Map<String, String> data,
+        @RequestHeader(value = "X-User-Id", required = false) Long currentUserId) {
+    
+    try {
+        System.out.println("=== APPROVE PROJECT REQUEST ===");
+        System.out.println("Project ID: " + id);
+        System.out.println("Current User ID: " + currentUserId);
         
-        try {
-            System.out.println("=== APPROVE PROJECT REQUEST ===");
-            System.out.println("Project ID: " + id);
-            System.out.println("Current User ID: " + currentUserId);
-            
-            User currentUser = null;
-            if (currentUserId != null) {
-                currentUser = userService.findUserById(currentUserId).orElse(null);
-            }
-            
-            if (currentUser == null || currentUser.getRole() != User.Role.QUALITY_ASSURANCE) {
-                return ResponseEntity.status(403).body(Map.of("error", "Only Quality Assurance can approve projects"));
-            }
-            
-            Project project = projectService.findProjectById(id)
-                .orElseThrow(() -> new RuntimeException("Project not found: " + id));
-            
-            String action = data.getOrDefault("action", "APPROVE").toUpperCase();
-            Project.ApprovalStatus newStatus;
-            
-            if ("APPROVE".equals(action)) {
-                newStatus = Project.ApprovalStatus.APPROVED;
-            } else if ("REJECT".equals(action)) {
-                newStatus = Project.ApprovalStatus.REJECTED;
-            } else {
-                return ResponseEntity.badRequest().body(Map.of("error", "Invalid action: " + action));
-            }
-            
-            project.setApprovalStatus(newStatus);
-            project.setApprovedBy(currentUser);
-            project.setApprovedAt(java.time.LocalDateTime.now());
-            
-            // ✅ Now this works because projectRepository is injected
-            Project updatedProject = projectRepository.save(project);
-            
-            activityLogService.logAction(
-                currentUser,
-                "PROJECT_" + action,
-                "Project",
-                id,
-                action + " project: " + project.getProjectName()
-            );
-            
-            System.out.println("✅ Project " + action.toLowerCase() + " by " + currentUser.getUsername());
-            
-            return ResponseEntity.ok(Map.of(
-                "message", "Project " + action.toLowerCase() + " successfully",
-                "project", updatedProject
-            ));
-            
-        } catch (Exception e) {
-            System.err.println("❌ Error approving project: " + e.getMessage());
-            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        User currentUser = null;
+        if (currentUserId != null) {
+            currentUser = userService.findUserById(currentUserId).orElse(null);
         }
+        
+        
+        if (currentUser == null || currentUser.getRole() != User.Role.QUALITY_ASSURANCE) {
+            return ResponseEntity.status(403).body(Map.of("error", "Only Quality Assurance can approve/reject projects"));
+        }
+        
+        String action = data.getOrDefault("action", "APPROVE").toUpperCase();
+        
+       
+        if (!"APPROVE".equals(action) && !"REJECT".equals(action)) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Invalid action: " + action + ". Must be APPROVE or REJECT"));
+        }
+        
+        Project updatedProject = projectService.approveOrRejectProject(id, action, currentUser);
+        
+        System.out.println("✅ Project " + action.toLowerCase() + " by " + currentUser.getUsername());
+        
+        return ResponseEntity.ok(Map.of(
+            "message", "Project " + action.toLowerCase() + " successfully",
+            "project", updatedProject
+        ));
+        
+    } catch (IllegalArgumentException e) {
+        System.err.println("❌ Validation error: " + e.getMessage());
+        return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+    } catch (Exception e) {
+        System.err.println("❌ Error approving project: " + e.getMessage());
+        e.printStackTrace();
+        return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
     }
-
+}
     @PutMapping("/{id}/vpn-status")
     public ResponseEntity<?> updateVpnStatus(
             @PathVariable Long id,
