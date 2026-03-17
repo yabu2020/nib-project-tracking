@@ -32,6 +32,8 @@ const ActivityLogs = () => {
     'PROJECT_CREATED': '📁 Project Created',
     'PROJECT_UPDATED': '✏️ Project Updated',
     'PROJECT_DELETED': '🗑️ Project Deleted',
+   'PROJECT_APPROVED': '✅ Project Approved',        
+  'PROJECT_REJECTED': '❌ Project Rejected', 
     'TASK_CREATED': '✅ Task Created',
     'TASK_UPDATED': '✏️ Task Updated',
     'TASK_DELETED': '🗑️ Task Deleted',
@@ -155,7 +157,16 @@ setPagination(prev => ({
   const getActionDisplay = (action) => {
     return actionLabels[action] || action.replace(/_/g, ' ');
   };
-
+const getActionBadgeStyle = (action) => {
+  switch(action) {
+    case 'PROJECT_APPROVED':
+      return { backgroundColor: '#d4edda', color: '#155724' };
+    case 'PROJECT_REJECTED':
+      return { backgroundColor: '#f8d7da', color: '#721c24' };
+    default:
+      return { backgroundColor: '#e7f3ff', color: '#003366' };
+  }
+};
   if (loading && logs.length === 0) {
     return (
       <div className="dashboard-container">
@@ -425,7 +436,7 @@ setPagination(prev => ({
                       <td style={{ fontWeight: '600' }}>
                         {log.user?.username || log.user?.fullName || 'Unknown'}
                       </td>
-                      <td>
+            <td>
                         <span style={{ 
                           padding: '3px 8px', 
                           borderRadius: '4px', 
