@@ -70,10 +70,10 @@ api.interceptors.response.use(
       localStorage.removeItem('jwt');
       localStorage.removeItem('user');
       
-      if (!window.location.href.includes('/login')) {
-        console.log('🔄 Redirecting to /login due to auth error');
-        window.location.href = '/login?session=expired';  
-      }
+   if (!window.location.href.includes('/login')) {
+  console.log('🔄 Redirecting to /login due to auth error');
+  window.location.href = '/login'; 
+}
       
       
       return Promise.resolve({

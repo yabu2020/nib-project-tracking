@@ -138,12 +138,19 @@ public class AuthController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(Map.of("success", false, "error", "Invalid username or password"));
 
-        } catch (Exception e) {
-            System.err.println("❌ Login error: " + e.getMessage());
-            e.printStackTrace();
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of("success", false, "error", "An error occurred during login"));
-        }
+} catch (Exception e) {
+    System.err.println("❌ Login error: " + e.getMessage());
+    e.printStackTrace();
+    
+    if (e instanceof RuntimeException && e.getMessage().contains("User not found")) {
+        
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(Map.of("success", false, "error", "Invalid username or password"));
+    }
+    
+    return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+            .body(Map.of("success", false, "error", "Invalid username or password"));
+}
     }
 
     /**

@@ -11,49 +11,69 @@ const Login = () => {
 
   const { login } = useAuth();
   const navigate = useNavigate();
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  console.log('Form submit triggered!');
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    console.log('Form submit triggered!');
+  setError('');
+  setLoading(true);
 
-    setError('');
-    setLoading(true);
+  try {
+    console.log('🔐 Attempting login for:', username);
 
-    try {
-      console.log('🔐 Attempting login for:', username);
+    const result = await login(username, password);
 
-      const result = await login(username, password);
+    console.log('🔍 Login result:', result);
+    console.log('🔍 user.mustResetPassword:', result.user?.mustResetPassword);
 
-      console.log('🔍 Login result:', result);
-      console.log('🔍 user.mustResetPassword:', result.user?.mustResetPassword);
+    if (result.success) {
+      console.log(' Login successful, user:', result.user);
 
-      if (result.success) {
-        console.log('✅ Login successful, user:', result.user);
+      await new Promise(resolve => setTimeout(resolve, 300));
 
-        await new Promise(resolve => setTimeout(resolve, 300));
-
-        if (result.user?.mustResetPassword === true) {
-          console.log('🔐 Redirecting to reset-password');
-          navigate('/reset-password', { 
-            state: { user: result.user },
-            replace: true 
-          });
-        } else {
-          console.log('✅ Redirecting to dashboard');
-          navigate('/dashboard', { replace: true });
-        }
+      if (result.user?.mustResetPassword === true) {
+        console.log('🔐 Redirecting to reset-password');
+        navigate('/reset-password', { 
+          state: { user: result.user },
+          replace: true 
+        });
       } else {
-        console.error('❌ Login failed:', result.error);
-        setError(result.error || 'Invalid username or password');
+        console.log(' Redirecting to dashboard');
+        navigate('/dashboard', { replace: true });
       }
-    } catch (err) {
-      console.error('💥 Login error:', err);
-      setError('Network error or invalid credentials');
-    } finally {
-      setLoading(false);
+    } else {
+      console.error(' Login failed:', result.error);
+      
+    
+      setError(' Invalid username or password');
     }
-  };
-
+  } catch (err) {
+    console.error('💥 Login error:', err);
+    
+    
+    if (err.response) {
+      const status = err.response.status;
+      
+      
+      if (status === 401 || status === 403) {
+        setError(' Invalid username or password');
+      } else if (status === 404) {
+        
+        setError(' Invalid username or password');
+      } else {
+        
+        setError(' Invalid username or password');
+      }
+    } else if (err.request) {
+   
+      setError('⚠️ Network error. Please check your connection and try again.');
+    } else {
+      setError(' Invalid username or password');
+    }
+  } finally {
+    setLoading(false);
+  }
+};
   const handleButtonClick = () => {
     console.log('Button clicked directly');
   };

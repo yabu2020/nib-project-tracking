@@ -297,6 +297,7 @@ public class ProjectController {
     private boolean canEditProjectDates(String role) {
         if (role == null) return false;
         return role.equals("PROJECT_MANAGER") ||
+        
                role.equals("CEO") ||
                role.equals("DEPUTY_CHIEF") ||
                role.equals("DIRECTOR") ||
