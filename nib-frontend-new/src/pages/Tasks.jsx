@@ -16,6 +16,7 @@ const Tasks = () => {
   const [showModal, setShowModal] = useState(false);
   const [filterProject, setFilterProject] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
+  const [filterPriority, setFilterPriority] = useState('all');
   const [editingTask, setEditingTask] = useState(null);
   
   const [selectedTask, setSelectedTask] = useState(null);
@@ -256,11 +257,19 @@ const Tasks = () => {
     setTasksRefreshTrigger(prev => prev + 1);
   };
 
+  
+
   const filteredTasks = (Array.isArray(tasks) ? tasks : []).filter(t => {
-    if (filterProject !== 'all' && t.project?.id !== parseInt(filterProject)) return false;
-    if (filterStatus !== 'all' && t.status !== filterStatus) return false;
-    return true;
-  });
+  if (filterProject !== 'all' && t.project?.id !== parseInt(filterProject)) return false;
+  if (filterStatus !== 'all' && t.status !== filterStatus) return false;
+  
+  if (filterPriority !== 'all') {
+    const priorityNum = parseInt(filterPriority);
+    if (t.priority !== priorityNum) return false;
+  }
+  
+  return true;
+});
 
   if (loading) {
     return (
@@ -545,11 +554,26 @@ const Tasks = () => {
                 <option value="COMPLETED">Completed</option>
               </select>
             </div>
-
+             <div style={{ flex: 1, minWidth: '200px' }}>
+    <label style={{ fontWeight: '600', fontSize: '14px', display: 'block', marginBottom: '5px' }}>
+      Filter by Priority
+    </label>
+    <select 
+      value={filterPriority}
+      onChange={(e) => setFilterPriority(e.target.value)}
+      style={{ width: '100%', padding: '10px', borderRadius: '5px', border: '1px solid #ddd' }}
+    >
+      <option value="all">All Priorities</option>
+      <option value="4" style={{ color: '#dc3545', fontWeight: 'bold' }}>🔴 Critical</option>
+      <option value="3" style={{ color: '#fd7e14', fontWeight: 'bold' }}>🟠 High</option>
+      <option value="2" style={{ color: '#ffc107' }}>🟡 Medium</option>
+      <option value="1" style={{ color: '#28a745' }}>🟢 Low</option>
+    </select>
+  </div>
             <div style={{ flex: '0 0 auto' }}>
               <button 
                 className="btn btn-primary"
-                onClick={() => { setFilterProject('all'); setFilterStatus('all'); }}
+                onClick={() => { setFilterProject('all'); setFilterStatus('all');  setFilterPriority('all');}}
                 style={{ marginTop: '28px' }}
               >
                 Clear Filters

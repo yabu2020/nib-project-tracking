@@ -45,6 +45,7 @@ const ActivityLogs = () => {
     'USER_DELETED': '🗑️ User Deleted',
     'USER_DEACTIVATED': '⏸️ User Deactivated',
     'USER_REACTIVATED': '▶️ User Reactivated',
+     'VPN_STATUS_UPDATED': '🔒 VPN Status Updated',
 
     
   };
@@ -163,6 +164,8 @@ const getActionBadgeStyle = (action) => {
       return { backgroundColor: '#d4edda', color: '#155724' };
     case 'PROJECT_REJECTED':
       return { backgroundColor: '#f8d7da', color: '#721c24' };
+      case 'VPN_STATUS_UPDATED':  
+      return { backgroundColor: '#fff3cd', color: '#856404' };
     default:
       return { backgroundColor: '#e7f3ff', color: '#003366' };
   }

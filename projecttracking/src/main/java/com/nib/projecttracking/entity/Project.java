@@ -3,18 +3,20 @@ package com.nib.projecttracking.entity;
 import com.fasterxml.jackson.annotation.JsonBackReference;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
-import com.fasterxml.jackson.annotation.JsonProperty;  
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.ArrayList;  
-import java.util.List;  
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
-@Table(name = "projects")
+@Table(name = "projects", uniqueConstraints = {
+    @UniqueConstraint(columnNames = "project_name", name = "uk_project_name")
+})
 @Data
 @NoArgsConstructor
 public class Project {
@@ -23,6 +25,7 @@ public class Project {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     
+    @Column(name = "project_name", nullable = false, length = 255)
     private String projectName;
     
     private String projectType;
@@ -41,20 +44,20 @@ public class Project {
     @Enumerated(EnumType.STRING)
     private RagStatus ragStatus;
 
-  @Enumerated(EnumType.STRING)
-@Column(name = "approval_status", nullable = true) 
-private ApprovalStatus approvalStatus = ApprovalStatus.PENDING;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "approval_status", nullable = true) 
+    private ApprovalStatus approvalStatus = ApprovalStatus.PENDING;
 
-@ManyToOne(fetch = FetchType.LAZY)
-@JoinColumn(name = "approved_by")
-@JsonBackReference("project-approvedBy")
-private User approvedBy;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "approved_by")
+    @JsonBackReference("project-approvedBy")
+    private User approvedBy;
 
-private LocalDateTime approvedAt;
+    private LocalDateTime approvedAt;
 
-   @Enumerated(EnumType.STRING)
-@Column(name = "vpn_status", nullable = true)  
-private VpnStatus vpnStatus;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "vpn_status", nullable = true)  
+    private VpnStatus vpnStatus;
     
     private Integer completionPercentage;
     
@@ -100,27 +103,30 @@ private VpnStatus vpnStatus;
     public enum RagStatus {
         GREEN, AMBER, RED
     }
+    
     public enum VpnStatus {
-    NONE,           
-    REQUESTED,     
-    CONFIGURED      
-}
-public enum ApprovalStatus {
-    PENDING,     
-    APPROVED,     
-    REJECTED      
-}
+        NONE,           
+        REQUESTED,     
+        CONFIGURED      
+    }
+    
+    public enum ApprovalStatus {
+        PENDING,     
+        APPROVED,     
+        REJECTED      
+    }
 
-public ApprovalStatus getApprovalStatus() {
-    return approvalStatus != null ? approvalStatus : ApprovalStatus.PENDING;
-}
+    public ApprovalStatus getApprovalStatus() {
+        return approvalStatus != null ? approvalStatus : ApprovalStatus.PENDING;
+    }
 
-public void setApprovalStatus(ApprovalStatus approvalStatus) {
-    this.approvalStatus = approvalStatus;
-}
-public VpnStatus getVpnStatus() {
-    return vpnStatus != null ? vpnStatus : VpnStatus.NONE;
-}
+    public void setApprovalStatus(ApprovalStatus approvalStatus) {
+        this.approvalStatus = approvalStatus;
+    }
+    
+    public VpnStatus getVpnStatus() {
+        return vpnStatus != null ? vpnStatus : VpnStatus.NONE;
+    }
     
     @PrePersist
     protected void onCreate() {
@@ -130,6 +136,7 @@ public VpnStatus getVpnStatus() {
         if (ragStatus == null) ragStatus = RagStatus.GREEN;
         if (completionPercentage == null) completionPercentage = 0;
         if (vpnStatus == null) vpnStatus = VpnStatus.NONE;
+        if (approvalStatus == null) approvalStatus = ApprovalStatus.PENDING;
     }
     
     @PreUpdate

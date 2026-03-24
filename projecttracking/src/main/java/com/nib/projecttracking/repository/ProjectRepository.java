@@ -14,15 +14,14 @@ import java.util.Optional;
 @Repository
 public interface ProjectRepository extends JpaRepository<Project, Long> {
 
-
     @Query("SELECT DISTINCT p FROM Project p LEFT JOIN FETCH p.manager LEFT JOIN FETCH p.initiatedBy ORDER BY p.createdAt DESC")
     @Override
     List<Project> findAll();
 
-    
     @Query("SELECT DISTINCT p FROM Project p LEFT JOIN FETCH p.manager LEFT JOIN FETCH p.initiatedBy WHERE p.id = :id")
     @Override
     Optional<Project> findById(@Param("id") Long id);
+    
     @Query("SELECT DISTINCT p FROM Project p LEFT JOIN FETCH p.manager LEFT JOIN FETCH p.initiatedBy WHERE p.id = :id")
     Optional<Project> findProjectWithDetails(@Param("id") Long id);
 
@@ -38,7 +37,6 @@ public interface ProjectRepository extends JpaRepository<Project, Long> {
     @Query("SELECT DISTINCT p FROM Project p LEFT JOIN FETCH p.manager WHERE p.status IN :statuses")
     List<Project> findActiveProjects(@Param("statuses") List<Project.ProjectStatus> statuses);
 
-
     @Query("SELECT DISTINCT p FROM Project p LEFT JOIN FETCH p.manager WHERE p.manager = :manager")
     List<Project> findByManager(@Param("manager") User manager);
 
@@ -51,14 +49,13 @@ public interface ProjectRepository extends JpaRepository<Project, Long> {
     @Query("SELECT DISTINCT p FROM Project p LEFT JOIN FETCH p.manager WHERE p.projectType = :projectType")
     List<Project> findByProjectType(@Param("projectType") String projectType);
 
-@Query("SELECT p FROM Project p WHERE p.vpnStatus = :vpnStatus ORDER BY p.updatedAt DESC")
-List<Project> findByVpnStatus(@Param("vpnStatus") Project.VpnStatus vpnStatus);
+    @Query("SELECT p FROM Project p WHERE p.vpnStatus = :vpnStatus ORDER BY p.updatedAt DESC")
+    List<Project> findByVpnStatus(@Param("vpnStatus") Project.VpnStatus vpnStatus);
 
-@Query("SELECT p FROM Project p WHERE p.initiatedBy.id = :initiatorId AND p.vpnStatus = :vpnStatus")
-List<Project> findByInitiatorIdAndVpnStatus(@Param("initiatorId") Long initiatorId, 
-                                            @Param("vpnStatus") Project.VpnStatus vpnStatus);
+    @Query("SELECT p FROM Project p WHERE p.initiatedBy.id = :initiatorId AND p.vpnStatus = :vpnStatus")
+    List<Project> findByInitiatorIdAndVpnStatus(@Param("initiatorId") Long initiatorId, 
+                                                @Param("vpnStatus") Project.VpnStatus vpnStatus);
     
-
     long countByStatus(Project.ProjectStatus status);
 
     @Query("""
@@ -74,5 +71,20 @@ List<Project> findByInitiatorIdAndVpnStatus(@Param("initiatorId") Long initiator
             @Param("startDate") LocalDate startDate,
             @Param("endDate") LocalDate endDate
     );
+
+    // ✅✅✅ NEW: Duplicate Project Name Validation Methods ✅✅✅
+
+    /**
+     * Check if a project with the given name already exists (case-insensitive)
+     * Used for CREATE operations
+     */
+    boolean existsByProjectNameIgnoreCase(String projectName);
+
+    /**
+     * Check if a project with the given name exists, excluding a specific project ID
+     * Used for UPDATE operations (allows keeping the same name)
+     */
+    @Query("SELECT CASE WHEN COUNT(p) > 0 THEN true ELSE false END FROM Project p WHERE LOWER(p.projectName) = LOWER(:projectName) AND p.id != :excludeId")
+    boolean existsByProjectNameIgnoreCaseAndIdNot(@Param("projectName") String projectName, @Param("excludeId") Long excludeId);
 
 }

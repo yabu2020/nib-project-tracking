@@ -36,7 +36,6 @@ public class ProjectController {
     @Autowired
     private ActivityLogService activityLogService;
     
-    // ✅ ADD THIS - Inject ProjectRepository
     @Autowired
     private ProjectRepository projectRepository;
     
@@ -205,8 +204,21 @@ public class ProjectController {
             System.out.println("🔍 Current User ID from header: " + currentUserId);
             System.out.println("Request  " + projectData);
             
+            // 🔍 ✅ VALIDATE PROJECT NAME - Check for duplicates
+            String projectName = (String) projectData.get("projectName");
+            if (projectName == null || projectName.trim().isEmpty()) {
+                return ResponseEntity.badRequest().body(Map.of("error", "Project name is required"));
+            }
+            
+            // ✅ Check if project name already exists (case-insensitive)
+            if (projectRepository.existsByProjectNameIgnoreCase(projectName.trim())) {
+                System.out.println("❌ Duplicate project name detected: " + projectName);
+                return ResponseEntity.status(409)  // 409 = Conflict
+                    .body(Map.of("error", "Project name exists"));
+            }
+            
             Project project = new Project();
-            project.setProjectName((String) projectData.get("projectName"));
+            project.setProjectName(projectName.trim());  // Use trimmed name
             project.setProjectType((String) projectData.get("projectType"));
             project.setDescription((String) projectData.get("description"));
             
@@ -297,7 +309,6 @@ public class ProjectController {
     private boolean canEditProjectDates(String role) {
         if (role == null) return false;
         return role.equals("PROJECT_MANAGER") ||
-        
                role.equals("CEO") ||
                role.equals("DEPUTY_CHIEF") ||
                role.equals("DIRECTOR") ||
@@ -306,51 +317,50 @@ public class ProjectController {
     }
 
     @PutMapping("/{id}/approve")
-public ResponseEntity<?> approveProject(
-        @PathVariable Long id,
-        @RequestBody Map<String, String> data,
-        @RequestHeader(value = "X-User-Id", required = false) Long currentUserId) {
-    
-    try {
-        System.out.println("=== APPROVE PROJECT REQUEST ===");
-        System.out.println("Project ID: " + id);
-        System.out.println("Current User ID: " + currentUserId);
+    public ResponseEntity<?> approveProject(
+            @PathVariable Long id,
+            @RequestBody Map<String, String> data,
+            @RequestHeader(value = "X-User-Id", required = false) Long currentUserId) {
         
-        User currentUser = null;
-        if (currentUserId != null) {
-            currentUser = userService.findUserById(currentUserId).orElse(null);
+        try {
+            System.out.println("=== APPROVE PROJECT REQUEST ===");
+            System.out.println("Project ID: " + id);
+            System.out.println("Current User ID: " + currentUserId);
+            
+            User currentUser = null;
+            if (currentUserId != null) {
+                currentUser = userService.findUserById(currentUserId).orElse(null);
+            }
+            
+            if (currentUser == null || currentUser.getRole() != User.Role.QUALITY_ASSURANCE) {
+                return ResponseEntity.status(403).body(Map.of("error", "Only Quality Assurance can approve/reject projects"));
+            }
+            
+            String action = data.getOrDefault("action", "APPROVE").toUpperCase();
+            
+            if (!"APPROVE".equals(action) && !"REJECT".equals(action)) {
+                return ResponseEntity.badRequest().body(Map.of("error", "Invalid action: " + action + ". Must be APPROVE or REJECT"));
+            }
+            
+            Project updatedProject = projectService.approveOrRejectProject(id, action, currentUser);
+            
+            System.out.println("✅ Project " + action.toLowerCase() + " by " + currentUser.getUsername());
+            
+            return ResponseEntity.ok(Map.of(
+                "message", "Project " + action.toLowerCase() + " successfully",
+                "project", updatedProject
+            ));
+            
+        } catch (IllegalArgumentException e) {
+            System.err.println("❌ Validation error: " + e.getMessage());
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        } catch (Exception e) {
+            System.err.println("❌ Error approving project: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
-        
-        
-        if (currentUser == null || currentUser.getRole() != User.Role.QUALITY_ASSURANCE) {
-            return ResponseEntity.status(403).body(Map.of("error", "Only Quality Assurance can approve/reject projects"));
-        }
-        
-        String action = data.getOrDefault("action", "APPROVE").toUpperCase();
-        
-       
-        if (!"APPROVE".equals(action) && !"REJECT".equals(action)) {
-            return ResponseEntity.badRequest().body(Map.of("error", "Invalid action: " + action + ". Must be APPROVE or REJECT"));
-        }
-        
-        Project updatedProject = projectService.approveOrRejectProject(id, action, currentUser);
-        
-        System.out.println("✅ Project " + action.toLowerCase() + " by " + currentUser.getUsername());
-        
-        return ResponseEntity.ok(Map.of(
-            "message", "Project " + action.toLowerCase() + " successfully",
-            "project", updatedProject
-        ));
-        
-    } catch (IllegalArgumentException e) {
-        System.err.println("❌ Validation error: " + e.getMessage());
-        return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
-    } catch (Exception e) {
-        System.err.println("❌ Error approving project: " + e.getMessage());
-        e.printStackTrace();
-        return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
     }
-}
+    
     @PutMapping("/{id}/vpn-status")
     public ResponseEntity<?> updateVpnStatus(
             @PathVariable Long id,
@@ -434,6 +444,17 @@ public ResponseEntity<?> approveProject(
             System.out.println("🔍 Current User ID from header: " + currentUserId);
             System.out.println("Project ID: " + id);
             
+            // ✅ VALIDATE PROJECT NAME CHANGE - Check for duplicates (excluding current project)
+            String newProjectName = (String) projectData.get("projectName");
+            if (newProjectName != null && !newProjectName.trim().isEmpty()) {
+                // Check if another project (not this one) already has this name
+                if (projectRepository.existsByProjectNameIgnoreCaseAndIdNot(newProjectName.trim(), id)) {
+                    System.out.println("❌ Duplicate project name detected on update: " + newProjectName);
+                    return ResponseEntity.status(409)
+                        .body(Map.of("error", "Project name exists"));
+                }
+            }
+            
             User currentUser = null;
             if (currentUserId != null) {
                 currentUser = userService.findUserById(currentUserId).orElse(null);
@@ -451,7 +472,7 @@ public ResponseEntity<?> approveProject(
             Project projectDetails = new Project();
             
             if (projectData.get("projectName") != null) {
-                projectDetails.setProjectName((String) projectData.get("projectName"));
+                projectDetails.setProjectName(((String) projectData.get("projectName")).trim());
             }
             if (projectData.get("projectType") != null) {
                 projectDetails.setProjectType((String) projectData.get("projectType"));
