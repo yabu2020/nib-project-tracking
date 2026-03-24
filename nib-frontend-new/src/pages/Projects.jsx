@@ -171,6 +171,18 @@ const handleApproveProject = async (projectId, action = 'APPROVE') => {
 
  const handleSubmit = async (e) => {
   e.preventDefault();
+  
+  
+  const duplicateProject = projects.find(p => 
+    p.projectName?.toLowerCase() === formData.projectName.toLowerCase() && 
+    p.id !== editingProject?.id  
+  );
+  
+  if (duplicateProject) {
+    alert('Error: Project name exists');  
+    return;  
+  }
+  
   try {
     console.log(editingProject ? 'Updating project...' : 'Creating project...');
 
@@ -190,7 +202,6 @@ const handleApproveProject = async (projectId, action = 'APPROVE') => {
       managerId: isManager() ? currentUser?.id : null
     };
 
-    
     if (!canEditProjectDates()) {
       delete requestData.startDate;
       delete requestData.endDate;
@@ -221,11 +232,25 @@ const handleApproveProject = async (projectId, action = 'APPROVE') => {
       endDate: '',
       status: 'PLANNED'
     });
-  } catch (error) {
-    console.error('Error:', error);
-    const errorMsg = error.response?.data?.error || 'Unknown error occurred';
+ } catch (error) {
+  console.error('Error:', error);
+  
+  // ✅ Handle duplicate name error (both formats)
+  if (error.response?.status === 409) {
+    const errorMsg = error.response?.data?.error || 'Project name exists';
     alert('Error: ' + errorMsg);
+    return;
   }
+  
+  if (error.response?.data?.error?.includes('duplicate key') || 
+      error.response?.data?.error?.includes('uk_project_name')) {
+    alert('Error: Project name exists');
+    return;
+  }
+  
+  const errorMsg = error.response?.data?.error || 'Unknown error occurred';
+  alert('Error: ' + errorMsg);
+}
 };
 
   const handleLogout = () => {

@@ -200,20 +200,33 @@ const UserManagement = () => {
       alert('Error reactivating user: ' + (error.response?.data?.error || 'Unknown error'));
     }
   };
-
-
-  const handleDelete = async (userId) => {
-    if (!window.confirm('Are you sure you want to permanently delete this user? This cannot be undone!')) return;
-    try {
-      await api.delete(`/api/users/${userId}`, {
-        headers: { 'X-User-Id': currentUser?.id }
-      });
-      fetchData();
-      alert('User deleted successfully!');
-    } catch (error) {
-      alert('Error deleting user: ' + (error.response?.data?.error || 'Unknown error'));
+const handleDelete = async (userId) => {
+  if (!window.confirm('Are you sure you want to permanently delete this user? This cannot be undone!')) return;
+  
+  try {
+    await api.delete(`/api/users/${userId}`, {
+      headers: { 'X-User-Id': currentUser?.id }
+    });
+    fetchData();
+    alert('User deleted successfully!');
+  } catch (error) {
+    console.error('Delete error:', error);
+    
+    const errorMessage = error.response?.data?.error || error.message || '';
+    
+    if (errorMessage.includes('foreign key') || 
+        errorMessage.includes('activity_logs') ||
+        errorMessage.includes('is still referenced')) {
+      alert('❌ Cannot delete user: This user has activity logs. Please deactivate the user instead.');
+    } else if (errorMessage.includes('projects')) {
+      alert('❌ Cannot delete user: This user is associated with projects. Please deactivate instead.');
+    } else if (errorMessage.includes('tasks')) {
+      alert('❌ Cannot delete user: This user has assigned tasks. Please deactivate instead.');
+    } else {
+      alert('Error deleting user: ' + (errorMessage || 'Unknown error'));
     }
-  };
+  }
+};
 
   const handleLogout = () => {
     logout();

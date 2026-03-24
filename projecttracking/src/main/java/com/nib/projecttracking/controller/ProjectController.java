@@ -196,115 +196,124 @@ public class ProjectController {
         return ResponseEntity.ok(projectService.findCriticalProjects());
     }
     
-    @PostMapping
-    public ResponseEntity<?> createProject(@RequestBody Map<String, Object> projectData,
-                                            @RequestHeader(value = "X-User-Id", required = false) Long currentUserId) {
-        try {
-            System.out.println("=== CREATE PROJECT REQUEST ===");
-            System.out.println("🔍 Current User ID from header: " + currentUserId);
-            System.out.println("Request  " + projectData);
-            
-            // 🔍 ✅ VALIDATE PROJECT NAME - Check for duplicates
-            String projectName = (String) projectData.get("projectName");
-            if (projectName == null || projectName.trim().isEmpty()) {
-                return ResponseEntity.badRequest().body(Map.of("error", "Project name is required"));
-            }
-            
-            // ✅ Check if project name already exists (case-insensitive)
-            if (projectRepository.existsByProjectNameIgnoreCase(projectName.trim())) {
-                System.out.println("❌ Duplicate project name detected: " + projectName);
-                return ResponseEntity.status(409)  // 409 = Conflict
-                    .body(Map.of("error", "Project name exists"));
-            }
-            
-            Project project = new Project();
-            project.setProjectName(projectName.trim());  // Use trimmed name
-            project.setProjectType((String) projectData.get("projectType"));
-            project.setDescription((String) projectData.get("description"));
-            
-            if (projectData.get("startDate") != null) {
-                try {
-                    project.setStartDate(java.time.LocalDate.parse(projectData.get("startDate").toString()));
-                } catch (Exception e) {
-                    System.out.println("Start date parse error: " + e.getMessage());
-                }
-            }
-            
-            if (projectData.get("endDate") != null) {
-                try {
-                    project.setEndDate(java.time.LocalDate.parse(projectData.get("endDate").toString()));
-                } catch (Exception e) {
-                    System.out.println("End date parse error: " + e.getMessage());
-                }
-            }
-            User initiatedBy = null;
-            Object initiatedByIdObj = projectData.get("initiatedById");
-            if (initiatedByIdObj != null) {
-                try {
-                    Long initiatedById = Long.valueOf(initiatedByIdObj.toString());
-                    initiatedBy = userService.findUserById(initiatedById)
-                        .orElseThrow(() -> new RuntimeException("Initiator user not found: " + initiatedById));
-                } catch (Exception e) {
-                    System.out.println("Error finding initiator: " + e.getMessage());
-                }
-            }
-            User manager = null;
-            if (initiatedBy != null && isManagerRole(initiatedBy.getRole().name())) {
-                manager = initiatedBy;
-            }
-            
-            Object managerIdObj = projectData.get("managerId");
-            if (managerIdObj != null) {
-                try {
-                    Long managerId = Long.valueOf(managerIdObj.toString());
-                    manager = userService.findUserById(managerId)
-                        .orElseThrow(() -> new RuntimeException("Manager not found: " + managerId));
-                } catch (Exception e) {
-                    System.out.println("Error finding manager: " + e.getMessage());
-                }
-            }
-            User currentUser = null;
-            if (currentUserId != null) {
-                currentUser = userService.findUserById(currentUserId).orElse(null);
-                System.out.println("🔍 Loaded currentUser: " + (currentUser != null ? currentUser.getUsername() : "null"));
-            }
-            if (currentUser != null) {
-                project.setCreatedBy(currentUser);  
-                if (initiatedBy == null) {
-                    initiatedBy = currentUser;
-                    project.setInitiatedBy(initiatedBy);
-                }
-                if (manager == null && currentUser.getRole() == com.nib.projecttracking.entity.User.Role.BUSINESS) {
-                    manager = currentUser;
-                    project.setManager(manager);
-                }
-            }
-            if (project.getStatus() == null) {
-                project.setStatus(Project.ProjectStatus.PLANNED);
-            }
-            if (project.getRagStatus() == null) {
-                project.setRagStatus(Project.RagStatus.GREEN);
-            }
-            if (project.getCompletionPercentage() == null) {
-                project.setCompletionPercentage(0);
-            }
-            Project createdProject = projectService.createProjectWithUser(project, initiatedBy, manager, currentUser);
-            
-            System.out.println("✅ Project created with ID: " + createdProject.getId());
-            System.out.println("✅ createdBy: " + (createdProject.getCreatedBy() != null ? createdProject.getCreatedBy().getUsername() : "NULL"));
-            System.out.println("✅ manager: " + (createdProject.getManager() != null ? createdProject.getManager().getUsername() : "NULL"));
-            
-            return ResponseEntity.ok(Map.of(
-                "message", "Project created successfully",
-                "project", createdProject
-            ));
-            
-        } catch (Exception e) {
-            System.err.println("❌ Error creating project: " + e.getMessage());
-            e.printStackTrace();
-            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+   @PostMapping
+public ResponseEntity<?> createProject(@RequestBody Map<String, Object> projectData,
+                                        @RequestHeader(value = "X-User-Id", required = false) Long currentUserId) {
+    try {
+        System.out.println("=== CREATE PROJECT REQUEST ===");
+        System.out.println("🔍 Current User ID from header: " + currentUserId);
+        System.out.println("Request  " + projectData);
+        
+        // 🔍 ✅ VALIDATE PROJECT NAME - Check for duplicates
+        String projectName = (String) projectData.get("projectName");
+        if (projectName == null || projectName.trim().isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Project name is required"));
         }
+        
+        // ✅ Check if project name already exists (case-insensitive)
+        if (projectRepository.existsByProjectNameIgnoreCase(projectName.trim())) {
+            System.out.println("❌ Duplicate project name detected: " + projectName);
+            return ResponseEntity.status(409)  // 409 = Conflict
+                .body(Map.of("error", "Project name exists"));
+        }
+        
+        Project project = new Project();
+        project.setProjectName(projectName.trim());
+        project.setProjectType((String) projectData.get("projectType"));
+        project.setDescription((String) projectData.get("description"));
+        
+        if (projectData.get("startDate") != null) {
+            try {
+                project.setStartDate(java.time.LocalDate.parse(projectData.get("startDate").toString()));
+            } catch (Exception e) {
+                System.out.println("Start date parse error: " + e.getMessage());
+            }
+        }
+        
+        if (projectData.get("endDate") != null) {
+            try {
+                project.setEndDate(java.time.LocalDate.parse(projectData.get("endDate").toString()));
+            } catch (Exception e) {
+                System.out.println("End date parse error: " + e.getMessage());
+            }
+        }
+        User initiatedBy = null;
+        Object initiatedByIdObj = projectData.get("initiatedById");
+        if (initiatedByIdObj != null) {
+            try {
+                Long initiatedById = Long.valueOf(initiatedByIdObj.toString());
+                initiatedBy = userService.findUserById(initiatedById)
+                    .orElseThrow(() -> new RuntimeException("Initiator user not found: " + initiatedById));
+            } catch (Exception e) {
+                System.out.println("Error finding initiator: " + e.getMessage());
+            }
+        }
+        User manager = null;
+        if (initiatedBy != null && isManagerRole(initiatedBy.getRole().name())) {
+            manager = initiatedBy;
+        }
+        
+        Object managerIdObj = projectData.get("managerId");
+        if (managerIdObj != null) {
+            try {
+                Long managerId = Long.valueOf(managerIdObj.toString());
+                manager = userService.findUserById(managerId)
+                    .orElseThrow(() -> new RuntimeException("Manager not found: " + managerId));
+            } catch (Exception e) {
+                System.out.println("Error finding manager: " + e.getMessage());
+            }
+        }
+        User currentUser = null;
+        if (currentUserId != null) {
+            currentUser = userService.findUserById(currentUserId).orElse(null);
+            System.out.println("🔍 Loaded currentUser: " + (currentUser != null ? currentUser.getUsername() : "null"));
+        }
+        if (currentUser != null) {
+            project.setCreatedBy(currentUser);  
+            if (initiatedBy == null) {
+                initiatedBy = currentUser;
+                project.setInitiatedBy(initiatedBy);
+            }
+            if (manager == null && currentUser.getRole() == com.nib.projecttracking.entity.User.Role.BUSINESS) {
+                manager = currentUser;
+                project.setManager(manager);
+            }
+        }
+        if (project.getStatus() == null) {
+            project.setStatus(Project.ProjectStatus.PLANNED);
+        }
+        if (project.getRagStatus() == null) {
+            project.setRagStatus(Project.RagStatus.GREEN);
+        }
+        if (project.getCompletionPercentage() == null) {
+            project.setCompletionPercentage(0);
+        }
+        Project createdProject = projectService.createProjectWithUser(project, initiatedBy, manager, currentUser);
+        
+        System.out.println("✅ Project created with ID: " + createdProject.getId());
+        System.out.println("✅ createdBy: " + (createdProject.getCreatedBy() != null ? createdProject.getCreatedBy().getUsername() : "NULL"));
+        System.out.println("✅ manager: " + (createdProject.getManager() != null ? createdProject.getManager().getUsername() : "NULL"));
+        
+        return ResponseEntity.ok(Map.of(
+            "message", "Project created successfully",
+            "project", createdProject
+        ));
+        
+    } catch (org.springframework.dao.DataIntegrityViolationException e) {
+        // ✅ CATCH DATABASE CONSTRAINT VIOLATIONS
+        System.err.println("❌ Database constraint violation: " + e.getMessage());
+        if (e.getRootCause() != null && e.getRootCause().getMessage().contains("uk_project_name")) {
+            return ResponseEntity.status(409)
+                .body(Map.of("error", "Project name exists"));
+        }
+        return ResponseEntity.status(409)
+            .body(Map.of("error", "Database constraint violation"));
+    } catch (Exception e) {
+        System.err.println("❌ Error creating project: " + e.getMessage());
+        e.printStackTrace();
+        return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
     }
+}
     
     private boolean canEditProjectDates(String role) {
         if (role == null) return false;
