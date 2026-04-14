@@ -68,6 +68,14 @@ public class MilestoneService {
     public Optional<Milestone> findMilestoneById(Long milestoneId) {
         return milestoneRepository.findById(milestoneId);
     }
+    /**
+ * Find milestones by project ID
+ */
+@Transactional(readOnly = true)
+public List<Milestone> findMilestonesByProjectId(Long projectId) {
+    if (projectId == null) return Collections.emptyList();
+    return milestoneRepository.findByProjectId(projectId);
+}
 
     /**
      * Find all milestones

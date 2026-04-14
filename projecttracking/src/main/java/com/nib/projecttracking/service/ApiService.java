@@ -13,7 +13,7 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
-
+import java.util.Collections;
 @Service
 @Transactional
 public class ApiService {
@@ -137,6 +137,15 @@ public class ApiService {
     public long countProductionApis() {
         return findProductionApis().size();
     }
+
+    /**
+ * Find APIs by project ID
+ */
+@Transactional(readOnly = true)
+public List<Api> findApisByProjectId(Long projectId) {
+    if (projectId == null) return Collections.emptyList();
+    return apiRepository.findByProjectId(projectId);
+}
 
     /**
      * Update API lifecycle stage

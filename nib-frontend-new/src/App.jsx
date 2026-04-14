@@ -14,6 +14,7 @@ import UserManagement from './pages/UserManagement';
 import ActivityLogs from './pages/ActivityLogs';
 import Notifications from './pages/Notifications';
 import ResetPassword from './pages/ResetPassword';
+import CompletedProjects from './components/CompletedProjects';
 
 import './styles/App.css';
 
@@ -73,7 +74,7 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/reset-password" element={<ResetPassword />} />
-
+          <Route path="/completed-projects" element={<CompletedProjects />} />
           {/* Protected routes - require login */}
           <Route path="/dashboard" element={
             <ProtectedRoute>

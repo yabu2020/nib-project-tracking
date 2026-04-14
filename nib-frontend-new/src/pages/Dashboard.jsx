@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 import '../styles/App.css';
 import NotificationBell from '../components/NotificationBell';
+import { Link } from 'react-router-dom';
 
 const Dashboard = () => {
   const { currentUser, logout } = useAuth();
@@ -619,6 +620,10 @@ const loadComments = async (projectId) => {
     if (technicalRoles.includes(currentUser?.role)) return false;
     return true;
   };
+  const canViewCompletedProjects = () => {
+  const allowedRoles = ['CEO', 'DEPUTY_CHIEF', 'DIRECTOR', 'DIGITAL_BANKING_MANAGER', 'QUALITY_ASSURANCE'];
+  return allowedRoles.includes(currentUser?.role);
+};
 
   const canViewProjects = () => isNetworking()||isTechnicalStaff() || isQUALITY() || isExecutive() || isBusiness() || hasFullAccess() || isRestrictedManager();
   const canViewTasks = () => hasFullAccess() || isTechnicalStaff() || isQUALITY();
@@ -628,7 +633,7 @@ const loadComments = async (projectId) => {
   const canViewUserManagement = () => hasFullAccess();
   const canViewActivityLogs = () => hasFullAccess();
   const canViewReports = () => hasFullAccess() || isExecutive() || isQUALITY();
-
+  
   
   const handleLogout = async () => {
     try {
@@ -693,6 +698,10 @@ const loadComments = async (projectId) => {
         {canViewUserManagement() && <a href="/users" style={{ color: 'white', textDecoration: 'none', padding: '8px 15px', borderRadius: '5px' }}>Users</a>}
         {canViewActivityLogs() && <a href="/activity-logs" style={{ color: 'white', textDecoration: 'none', padding: '8px 15px', borderRadius: '5px' }}>Activity Logs</a>}
         {canViewReports() && <a href="/reports" style={{ color: 'white', textDecoration: 'none', padding: '8px 15px', borderRadius: '5px' }}>Reports</a>}
+         {canViewCompletedProjects() && (<Link to="/completed-projects"  style={{ color: 'white', textDecoration: 'none', padding: '8px 15px', borderRadius: '5px', display: 'flex', alignItems: 'center', gap: '5px' }} >
+       Completed Projects
+    </Link>
+  )}
       </div>
 
       {/* Main Content */}

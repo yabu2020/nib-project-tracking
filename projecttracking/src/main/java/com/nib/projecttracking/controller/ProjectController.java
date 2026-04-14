@@ -1,5 +1,8 @@
 package com.nib.projecttracking.controller;
 
+import com.nib.projecttracking.entity.Api;
+import com.nib.projecttracking.entity.Attachment;
+import com.nib.projecttracking.entity.Milestone;
 import com.nib.projecttracking.entity.Project;
 import com.nib.projecttracking.entity.User;
 import com.nib.projecttracking.entity.Task;
@@ -11,7 +14,9 @@ import com.nib.projecttracking.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
+import com.nib.projecttracking.service.MilestoneService;
+import com.nib.projecttracking.service.ApiService;
+import com.nib.projecttracking.service.AttachmentService;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
@@ -38,6 +43,15 @@ public class ProjectController {
     
     @Autowired
     private ProjectRepository projectRepository;
+
+    @Autowired
+private MilestoneService milestoneService;
+
+@Autowired
+private ApiService apiService;
+
+ @Autowired
+    private AttachmentService attachmentService;
     
     @GetMapping
     public ResponseEntity<List<Project>> getAllProjects(
@@ -127,64 +141,94 @@ public class ProjectController {
         
         return ResponseEntity.ok(List.of());
     }
-    
     @GetMapping("/{id}")
-    public ResponseEntity<?> getProjectById(@PathVariable Long id) {
-        return projectService.findProjectById(id)
-            .map(project -> {
-                Map<String, Object> response = new HashMap<>();
-                
-                response.put("id", project.getId());
-                response.put("projectName", project.getProjectName());
-                response.put("projectType", project.getProjectType());
-                response.put("description", project.getDescription());
-                response.put("status", project.getStatus());
-                response.put("ragStatus", project.getRagStatus());
-                response.put("startDate", project.getStartDate());
-                response.put("endDate", project.getEndDate());
-                response.put("completionPercentage", project.getCompletionPercentage());
-                response.put("createdAt", project.getCreatedAt());
-                response.put("updatedAt", project.getUpdatedAt());
-                response.put("vpnStatus", project.getVpnStatus() != null ? project.getVpnStatus() : "NONE");
-                response.put("approvalStatus", project.getApprovalStatus() != null ? project.getApprovalStatus() : "PENDING");
+public ResponseEntity<?> getProjectById(@PathVariable Long id) {
+    return projectService.findProjectById(id)
+        .map(project -> {
+            Map<String, Object> response = new HashMap<>();
+            
+            // Basic project fields
+            response.put("id", project.getId());
+            response.put("projectName", project.getProjectName());
+            response.put("projectType", project.getProjectType());
+            response.put("description", project.getDescription());
+            response.put("status", project.getStatus());
+            response.put("ragStatus", project.getRagStatus());
+            response.put("startDate", project.getStartDate());
+            response.put("endDate", project.getEndDate());
+            response.put("completionPercentage", project.getCompletionPercentage());
+            response.put("createdAt", project.getCreatedAt());
+            response.put("updatedAt", project.getUpdatedAt());
+            response.put("vpnStatus", project.getVpnStatus() != null ? project.getVpnStatus() : "NONE");
+            response.put("approvalStatus", project.getApprovalStatus() != null ? project.getApprovalStatus() : "PENDING");
 
-                if (project.getApprovedBy() != null) {
-                    Map<String, Object> approvedByData = new HashMap<>();
-                    approvedByData.put("id", project.getApprovedBy().getId());
-                    approvedByData.put("username", project.getApprovedBy().getUsername());
-                    approvedByData.put("fullName", project.getApprovedBy().getFullName());
-                    response.put("approvedBy", approvedByData);
-                } else {
-                    response.put("approvedBy", null);
-                }
-
-                response.put("approvedAt", project.getApprovedAt());
-
-                if (project.getInitiatedBy() != null) {
-                    Map<String, Object> initiatedByData = new HashMap<>();
-                    initiatedByData.put("id", project.getInitiatedBy().getId());
-                    initiatedByData.put("username", project.getInitiatedBy().getUsername());
-                    initiatedByData.put("fullName", project.getInitiatedBy().getFullName());
-                    initiatedByData.put("role", project.getInitiatedBy().getRole());
-                    response.put("initiatedBy", initiatedByData);
-                } else {
-                    response.put("initiatedBy", null);
-                }
-                
-                if (project.getManager() != null) {
-                    Map<String, Object> managerData = new HashMap<>();
-                    managerData.put("id", project.getManager().getId());
-                    managerData.put("username", project.getManager().getUsername());
-                    managerData.put("fullName", project.getManager().getFullName());
-                    response.put("manager", managerData);
-                } else {
-                    response.put("manager", null);
-                }
-                
-                return ResponseEntity.ok(response);
-            })
-            .orElse(ResponseEntity.notFound().build());
-    }
+            // Initiated By
+            if (project.getInitiatedBy() != null) {
+                Map<String, Object> initiatedByData = new HashMap<>();
+                initiatedByData.put("id", project.getInitiatedBy().getId());
+                initiatedByData.put("username", project.getInitiatedBy().getUsername());
+                initiatedByData.put("fullName", project.getInitiatedBy().getFullName());
+                initiatedByData.put("role", project.getInitiatedBy().getRole());
+                response.put("initiatedBy", initiatedByData);
+            } else {
+                response.put("initiatedBy", null);
+            }
+            
+            // Manager
+            if (project.getManager() != null) {
+                Map<String, Object> managerData = new HashMap<>();
+                managerData.put("id", project.getManager().getId());
+                managerData.put("username", project.getManager().getUsername());
+                managerData.put("fullName", project.getManager().getFullName());
+                response.put("manager", managerData);
+            } else {
+                response.put("manager", null);
+            }
+            
+            // ✅ FETCH AND ADD TASKS
+            try {
+                List<Task> tasks = taskService.findTasksByProjectId(id);
+                response.put("tasks", tasks != null ? tasks : List.of());
+                System.out.println("✅ Added " + (tasks != null ? tasks.size() : 0) + " tasks to response");
+            } catch (Exception e) {
+                System.err.println("⚠️ Error fetching tasks: " + e.getMessage());
+                response.put("tasks", List.of());
+            }
+            
+            // ✅ FETCH AND ADD MILESTONES  
+            try {
+                List<Milestone> milestones = milestoneService.findMilestonesByProjectId(id);
+                response.put("milestones", milestones != null ? milestones : List.of());
+                System.out.println("✅ Added " + (milestones != null ? milestones.size() : 0) + " milestones to response");
+            } catch (Exception e) {
+                System.err.println("⚠️ Error fetching milestones: " + e.getMessage());
+                response.put("milestones", List.of());
+            }
+            
+            // ✅ FETCH AND ADD APIs
+            try {
+                List<Api> apis = apiService.findApisByProjectId(id);
+                response.put("apis", apis != null ? apis : List.of());
+                System.out.println("✅ Added " + (apis != null ? apis.size() : 0) + " APIs to response");
+            } catch (Exception e) {
+                System.err.println("⚠️ Error fetching APIs: " + e.getMessage());
+                response.put("apis", List.of());
+            }
+            
+            // ✅ FETCH AND ADD ATTACHMENTS (NEW!)
+            try {
+                List<Attachment> attachments = attachmentService.getProjectAttachments(id);
+                response.put("attachments", attachments != null ? attachments : List.of());
+                System.out.println("✅ Added " + (attachments != null ? attachments.size() : 0) + " attachments to response");
+            } catch (Exception e) {
+                System.err.println("⚠️ Error fetching attachments: " + e.getMessage());
+                response.put("attachments", List.of());
+            }
+            
+            return ResponseEntity.ok(response);
+        })
+        .orElse(ResponseEntity.notFound().build());
+}
     
     @GetMapping("/active")
     public ResponseEntity<List<Project>> getActiveProjects() {
@@ -705,4 +749,60 @@ public ResponseEntity<?> createProject(@RequestBody Map<String, Object> projectD
             })
             .orElse(ResponseEntity.notFound().build());
     }
+
+@GetMapping("/completed")
+public ResponseEntity<List<Project>> getCompletedProjects(
+        @RequestParam(required = false) Long userId,
+        @RequestParam(required = false) String userRole) {
+    
+    System.out.println("=== GET COMPLETED PROJECTS ===");
+    System.out.println("User ID: " + userId);
+    System.out.println("User Role: " + userRole);
+    
+    // Fetch all projects
+    List<Project> allProjects = projectService.findAllProjects();
+    System.out.println("📊 Total projects in database: " + allProjects.size());
+    
+    // ✅ Filter by COMPLETED status OR 100% completion
+    List<Project> completedProjects = allProjects.stream()
+        .filter(p -> {
+            boolean isCompleted = p.getStatus() == Project.ProjectStatus.COMPLETED || 
+                                 (p.getCompletionPercentage() != null && p.getCompletionPercentage() == 100);
+            if (isCompleted) {
+                System.out.println("✅ Found completed project: " + p.getProjectName() + 
+                                 " | Status: " + p.getStatus() + 
+                                 " | Completion: " + p.getCompletionPercentage() + "%");
+            }
+            return isCompleted;
+        })
+        .collect(Collectors.toList());
+    
+    System.out.println("📦 Completed projects count: " + completedProjects.size());
+    
+    // Apply user role filtering
+    if (userId != null && userRole != null) {
+        if (isBusinessRole(userRole)) {
+            completedProjects = completedProjects.stream()
+                .filter(p -> p.getInitiatedBy() != null && 
+                            p.getInitiatedBy().getId().equals(userId))
+                .collect(Collectors.toList());
+            System.out.println("📊 After business filter: " + completedProjects.size());
+        } else if (isTechnicalRole(userRole)) {
+            User user = new User();
+            user.setId(userId);
+            List<Task> userTasks = taskService.findTasksByAssignedUser(user);
+            
+            completedProjects = userTasks.stream()
+                .map(Task::getProject)
+                .filter(Objects::nonNull)
+                .filter(p -> p.getStatus() == Project.ProjectStatus.COMPLETED || 
+                            (p.getCompletionPercentage() != null && p.getCompletionPercentage() == 100))
+                .distinct()
+                .collect(Collectors.toList());
+            System.out.println("📊 After technical filter: " + completedProjects.size());
+        }
+    }
+    
+    return ResponseEntity.ok(completedProjects);
+}
 }
